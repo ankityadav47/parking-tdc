@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../db/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { FacilitiesService } from '../facilities/facilities.service';
@@ -82,7 +83,7 @@ export class SearchService {
       ? await this.prisma.$queryRaw<Array<{ facility_id: string; overlapping: bigint }>>`
           SELECT "facilityId" AS facility_id, count(*) AS overlapping
           FROM reservations
-          WHERE "facilityId" = ANY(${candidateIds}::uuid[])
+          WHERE "facilityId" IN (${Prisma.join(candidateIds)})
             AND status IN ('pending', 'confirmed')
             AND tstzrange("startAt", "endAt") && tstzrange(${start}::timestamptz, ${end}::timestamptz)
           GROUP BY "facilityId"

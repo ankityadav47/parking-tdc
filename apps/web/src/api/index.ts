@@ -6,6 +6,12 @@ export const apiClient = new ApiClient(API_BASE_URL);
 
 export const api = apiClient.instance;
 
+// Restore token from localStorage on startup
+const savedToken = localStorage.getItem('driver_access_token');
+if (savedToken) {
+  apiClient.setToken(savedToken);
+}
+
 // When refresh fails (session expired), redirect to login
 apiClient.setOnAuthFailure(() => {
     localStorage.removeItem('driver_access_token');
