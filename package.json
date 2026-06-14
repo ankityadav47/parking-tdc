@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "turbo run dev",
-    "build": "npx pnpm@9.12.0 install && npx pnpm@9.12.0 --filter api build",
+    "build": "npx pnpm@9.12.0 install --prod=false && npx pnpm@9.12.0 --filter api build",
     "build:local": "turbo run build",
     "build:api": "pnpm --filter api build",
     "lint": "turbo run lint",
