@@ -1,27 +1,138 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, CreditCard, ShieldCheck, CheckCircle2, CarFront } from 'lucide-react';
+import { useParams, useNavigate, Link, useLocation, Navigate } from 'react-router-dom';
+import { ArrowLeft, ShieldCheck, CheckCircle2, CarFront } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { api } from '../api';
+
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 export default function CheckoutPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi'>('card');
+  
+  const state = location.state as {
+    date: string;
+    startTime: string;
+    endTime: string;
+    total: number;
+    pricePerHour: number;
+    facility: any;
+    hours: number;
+  };
 
-  // Hardcoded for demo
-  const amount = 319; // 270 + 49 tax
+  const [licensePlate, setLicensePlate] = useState('');
+  const [stateRegion, setStateRegion] = useState('KA');
+
+  if (!state) {
+    return <Navigate to={`/facilities/${id}`} replace />;
+  }
+
+  const { date, startTime, endTime, total, facility, hours } = state;
+  const taxes = Math.round(total * 0.18);
+  const finalAmount = total + taxes;
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // validate vehicle form
+    if (!licensePlate.trim()) {
+      alert('Please enter your license plate.');
+      return;
+    }
+
     setLoading(true);
-    // Simulate Razorpay / API call
-    await new Promise(r => setTimeout(r, 1500));
-    setLoading(false);
-    navigate('/reservations/DEMO-RES-123');
+    
+    try {
+      const resLoaded = await loadRazorpay();
+      if (!resLoaded) {
+        alert('Razorpay SDK failed to load. Are you online?');
+        setLoading(false);
+        return;
+      }
+
+      // 1. Create Booking
+      const startObj = new Date(`${date}T${startTime}:00`);
+      const endObj = new Date(`${date}T${endTime}:00`);
+      if (endObj <= startObj) {
+        endObj.setDate(endObj.getDate() + 1);
+      }
+      
+      const startIso = startObj.toISOString();
+      const endIso = endObj.toISOString();
+      
+      const bookingRes = await api.post('/bookings', {
+        facilityId: id,
+        start: startIso,
+        end: endIso,
+      });
+      const reservation = bookingRes.data.data;
+
+      // 2. Create Razorpay Order
+      const orderRes = await api.post(`/payments/reservations/${reservation.id}/order`);
+      const { orderId, amount, currency, keyId } = orderRes.data.data;
+
+      // 3. Open Razorpay Checkout
+      const options = {
+        key: keyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: amount.toString(),
+        currency: currency,
+        name: 'ParkSpot',
+        description: `Parking at ${facility.name}`,
+        order_id: orderId,
+        handler: async function (response: any) {
+          try {
+            // 4. Verify Payment
+            await api.post('/payments/verify', {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            navigate(`/reservations/${reservation.id}`);
+          } catch (err) {
+            console.error('Payment verification failed', err);
+            alert('Payment verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: 'Demo User',
+          email: 'demo@example.com',
+          contact: '9999999999'
+        },
+        theme: {
+          color: '#2563eb'
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function (response: any) {
+        console.error(response.error);
+        alert(response.error.description);
+      });
+      rzp.open();
+
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.response?.data?.message || 'Something went wrong while initiating payment.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inp = "w-full px-4 py-3 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 font-medium text-slate-900 transition-all";
+
+  const imgUrl = facility?.photos?.length > 0 
+    ? facility.photos[0].url
+    : 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=200&q=80';
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20 pb-12">
@@ -45,11 +156,11 @@ export default function CheckoutPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">License Plate</label>
-                  <input type="text" placeholder="KA 01 AB 1234" className={inp} required />
+                  <input type="text" value={licensePlate} onChange={e => setLicensePlate(e.target.value)} placeholder="KA 01 AB 1234" className={inp} required />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">State/Region</label>
-                  <select className={inp} defaultValue="KA">
+                  <select className={inp} value={stateRegion} onChange={e => setStateRegion(e.target.value)}>
                     <option value="KA">Karnataka (KA)</option>
                     <option value="MH">Maharashtra (MH)</option>
                     <option value="DL">Delhi (DL)</option>
@@ -58,58 +169,15 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <form onSubmit={handlePay} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-blue-600" /> Payment Method
+                Pay with Razorpay
               </h2>
-
-              <div className="flex gap-4">
-                <label className={`flex-1 flex flex-col items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'card' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
-                  <input type="radio" name="pay" value="card" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="sr-only" />
-                  <CreditCard className="w-6 h-6 mb-2" />
-                  <span className="font-bold text-sm">Card</span>
-                </label>
-                <label className={`flex-1 flex flex-col items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'upi' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
-                  <input type="radio" name="pay" value="upi" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} className="sr-only" />
-                  <span className="font-black text-lg mb-1 leading-none tracking-tighter">UPI</span>
-                  <span className="font-bold text-sm">GPay / PhonePe</span>
-                </label>
-              </div>
-
-              {paymentMethod === 'card' && (
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Card Number</label>
-                    <input type="text" placeholder="0000 0000 0000 0000" className={inp} required />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Expiry (MM/YY)</label>
-                      <input type="text" placeholder="12/26" className={inp} required />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1.5">CVC</label>
-                      <input type="password" placeholder="123" className={inp} maxLength={4} required />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Name on Card</label>
-                    <input type="text" placeholder="John Doe" className={inp} required />
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod === 'upi' && (
-                <div className="pt-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">UPI ID</label>
-                  <input type="text" placeholder="username@okhdfcbank" className={inp} required />
-                </div>
-              )}
-
-              <Button type="submit" isLoading={loading} className="w-full" size="lg">
-                Pay ₹{amount}
+              <p className="text-sm text-slate-600">You will be redirected to Razorpay's secure checkout to complete your payment via UPI, Credit/Debit Card, or Netbanking.</p>
+              <Button onClick={handlePay} isLoading={loading} className="w-full" size="lg">
+                Pay ₹{finalAmount.toFixed(0)}
               </Button>
-            </form>
+            </div>
           </div>
 
           {/* Right: Summary */}
@@ -119,11 +187,11 @@ export default function CheckoutPage() {
               
               <div className="flex gap-4 mb-6">
                 <div className="w-20 h-20 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0">
-                  <img src="https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=200&q=80" alt="Facility" className="w-full h-full object-cover" />
+                  <img src={imgUrl} alt="Facility" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900 leading-tight mb-1">MG Road Premium Covered Parking</div>
-                  <div className="text-sm text-slate-500">12 MG Road, Bangalore</div>
+                  <div className="font-bold text-slate-900 leading-tight mb-1">{facility?.name}</div>
+                  <div className="text-sm text-slate-500">{facility?.addressLine1}, {facility?.city}</div>
                 </div>
               </div>
 
@@ -131,32 +199,32 @@ export default function CheckoutPage() {
                 <div className="flex justify-between">
                   <div className="text-slate-500 text-sm">Arrive</div>
                   <div className="font-medium text-slate-900 text-right">
-                    <div>Jun 12, 2026</div>
-                    <div className="text-sm">2:00 PM</div>
+                    <div>{new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    <div className="text-sm">{new Date(`2000-01-01T${startTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
                   </div>
                 </div>
                 <div className="flex justify-between">
                   <div className="text-slate-500 text-sm">Exit</div>
                   <div className="font-medium text-slate-900 text-right">
-                    <div>Jun 12, 2026</div>
-                    <div className="text-sm">5:00 PM</div>
+                    <div>{new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    <div className="text-sm">{new Date(`2000-01-01T${endTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
                   </div>
                 </div>
               </div>
 
               <div className="bg-slate-50 rounded-2xl p-4 mb-6 space-y-3">
                 <div className="flex justify-between text-sm text-slate-600">
-                  <span>Parking Fee (3 hrs)</span>
-                  <span className="font-medium text-slate-900">₹270</span>
+                  <span>Parking Fee ({hours.toFixed(1)} hrs)</span>
+                  <span className="font-medium text-slate-900">₹{total.toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-slate-600">
                   <span>Taxes & Fees</span>
-                  <span className="font-medium text-slate-900">₹49</span>
+                  <span className="font-medium text-slate-900">₹{taxes.toFixed(0)}</span>
                 </div>
                 <hr className="border-slate-200" />
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-slate-900">Total Due</span>
-                  <span className="text-2xl font-black text-blue-600">₹{amount}</span>
+                  <span className="text-2xl font-black text-blue-600">₹{finalAmount.toFixed(0)}</span>
                 </div>
               </div>
 

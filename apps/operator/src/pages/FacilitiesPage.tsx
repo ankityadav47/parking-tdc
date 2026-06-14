@@ -80,11 +80,11 @@ export default function FacilitiesPage() {
                     <div className="text-xs text-slate-500">Spots</div>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-2">
-                    <div className="font-black text-slate-900">—</div>
+                    <div className="font-black text-slate-900">{f.avgRating ? Number(f.avgRating).toFixed(1) : '—'}</div>
                     <div className="text-xs text-slate-500">Rating</div>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-2">
-                    <div className="font-black text-slate-900">0</div>
+                    <div className="font-black text-blue-600">{f._count?.reservations ?? 0}</div>
                     <div className="text-xs text-slate-500">Bookings</div>
                   </div>
                 </div>

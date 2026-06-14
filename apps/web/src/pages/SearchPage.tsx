@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { Search, MapPin, Star, PlaneTakeoff, Filter, ChevronDown, Navigation } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
@@ -22,9 +22,23 @@ function clearMarkers() {
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const address = searchParams.get('address') || '';
 
-  const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
+  // Restore map state from URL params (preserved across navigation)
+  const urlLat = parseFloat(searchParams.get('mlat') || '');
+  const urlLng = parseFloat(searchParams.get('mlng') || '');
+  const urlZoom = parseFloat(searchParams.get('mzoom') || '');
+  const urlSelected = searchParams.get('selected') || null;
+  const urlStart = searchParams.get('start');
+  const urlEnd = searchParams.get('end');
+
+  const initialCenter: [number, number] = (
+    !isNaN(urlLat) && !isNaN(urlLng) ? [urlLng, urlLat] : [78.1828, 26.2183]
+  );
+  const initialZoom = !isNaN(urlZoom) ? urlZoom : 12;
+
+  const [selectedFacility, setSelectedFacility] = useState<string | null>(urlSelected);
   const [inputValue, setInputValue] = useState(address);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -33,16 +47,59 @@ export default function SearchPage() {
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [searchByMap, setSearchByMap] = useState(false); // true when map was moved by user
 
+  const [startDate, setStartDate] = useState(() => {
+    if (urlStart) return urlStart.split('T')[0];
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  });
+  const [startTime, setStartTime] = useState(() => {
+    if (urlStart) return new Date(urlStart).toTimeString().slice(0, 5);
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return d.toTimeString().slice(0, 5);
+  });
+  const [endDate, setEndDate] = useState(() => {
+    if (urlEnd) return urlEnd.split('T')[0];
+    const d = new Date();
+    d.setHours(d.getHours() + 4, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  });
+  const [endTime, setEndTime] = useState(() => {
+    if (urlEnd) return new Date(urlEnd).toTimeString().slice(0, 5);
+    const d = new Date();
+    d.setHours(d.getHours() + 4, 0, 0, 0);
+    return d.toTimeString().slice(0, 5);
+  });
+
+  // Calculate full ISO strings for the current selected times
+  const currentStartISO = new Date(`${startDate}T${startTime}:00`).toISOString();
+  const currentEndISO = new Date(`${endDate}T${endTime}:00`).toISOString();
+
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Helper: sync map state into URL so back-navigation restores the view
+  const syncMapStateToUrl = useCallback(() => {
+    if (!map.current) return;
+    const c = map.current.getCenter();
+    const z = map.current.getZoom();
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('mlat', c.lat.toFixed(6));
+      next.set('mlng', c.lng.toFixed(6));
+      next.set('mzoom', z.toFixed(2));
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   // ─── Fetch facilities by lat/lng ─────────────────────────────────
-  const fetchByCoords = useCallback(async (lat: number, lng: number) => {
+  const fetchByCoords = useCallback(async (lat: number, lng: number, startOverride?: string, endOverride?: string) => {
     setIsLoading(true);
     try {
-      const start = new Date().toISOString();
-      const end = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      const start = startOverride || currentStartISO;
+      const end = endOverride || currentEndISO;
       const res = await fetch(`${API}/search?lat=${lat}&lng=${lng}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&radius=50000`);
       const data = await res.json();
       const results = data.data || [];
@@ -57,12 +114,12 @@ export default function SearchPage() {
   }, []);
 
   // ─── Fetch facilities by address string ──────────────────────────
-  const fetchByAddress = useCallback(async (addr: string) => {
+  const fetchByAddress = useCallback(async (addr: string, startOverride?: string, endOverride?: string) => {
     if (!addr.trim()) return;
     setIsLoading(true);
     try {
-      const start = new Date().toISOString();
-      const end = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      const start = startOverride || currentStartISO;
+      const end = endOverride || currentEndISO;
       const res = await fetch(`${API}/search?address=${encodeURIComponent(addr)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&radius=50000`);
       const data = await res.json();
       const results = data.data || [];
@@ -88,16 +145,17 @@ export default function SearchPage() {
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: [78.1828, 26.2183], // Default: Gwalior, India
-      zoom: 12,
+      center: initialCenter,
+      zoom: initialZoom,
     });
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    // On map moveend, search the new center
+    // On map moveend: debounce search + sync URL state
     map.current.on('moveend', () => {
       if (!map.current) return;
       const center = map.current.getCenter();
+      syncMapStateToUrl();
       // Debounce so we don't hammer the API on every pixel
       if (moveTimer.current) clearTimeout(moveTimer.current);
       moveTimer.current = setTimeout(() => {
@@ -112,7 +170,7 @@ export default function SearchPage() {
         map.current = null;
       }
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── When map center changes (user panned), search there ─────────
   useEffect(() => {
@@ -120,13 +178,35 @@ export default function SearchPage() {
     fetchByCoords(mapCenter.lat, mapCenter.lng);
   }, [mapCenter, searchByMap, fetchByCoords]);
 
-  // ─── Initial address-based search ────────────────────────────────
+  // ─── Initial load: if we have saved map coords in URL, fetch by those; else by address
   useEffect(() => {
-    if (address) {
+    if (!isNaN(urlLat) && !isNaN(urlLng)) {
+      fetchByCoords(urlLat, urlLng, urlStart || currentStartISO, urlEnd || currentEndISO);
+    } else if (address) {
       setSearchByMap(false);
-      fetchByAddress(address);
+      fetchByAddress(address, urlStart || currentStartISO, urlEnd || currentEndISO);
     }
-  }, [address]); // intentionally not including fetchByAddress to avoid loop
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Trigger search when times change
+  useEffect(() => {
+    const s = new Date(`${startDate}T${startTime}:00`).toISOString();
+    const e = new Date(`${endDate}T${endTime}:00`).toISOString();
+    
+    // update URL to reflect new times
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('start', s);
+      next.set('end', e);
+      return next;
+    }, { replace: true });
+
+    if (!isNaN(urlLat) && !isNaN(urlLng)) {
+      fetchByCoords(urlLat, urlLng, s, e);
+    } else if (address) {
+      fetchByAddress(address, s, e);
+    }
+  }, [startDate, startTime, endDate, endTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Place/update markers on map when facilities change ──────────
   useEffect(() => {
@@ -136,44 +216,175 @@ export default function SearchPage() {
     facilities.forEach((f: any) => {
       if (!f.lat || !f.lng) return;
       const price = getPrice(f.rateRules);
+      const isSelected = selectedFacility === f.id;
+
+      // Use operator-uploaded cover photo (search API returns coverPhotoUrl)
+      const imgUrl = f.coverPhotoUrl || null;
+
+      const svgString = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' fill='#2563eb'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-family='Arial,sans-serif' font-weight='bold' font-size='22' fill='white'>P</text></svg>`;
+      const parkingIconSvg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
 
       const el = document.createElement('div');
-      el.style.cssText = 'cursor:pointer';
+      el.style.cssText = 'cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px;';
       el.innerHTML = `
         <div style="
-          background:${selectedFacility === f.id ? '#1e40af' : '#2563eb'};
+          width:${isSelected ? '52px' : '44px'};
+          height:${isSelected ? '52px' : '44px'};
+          border-radius:8px;
+          overflow:hidden;
+          border:${isSelected ? '3px solid #1e40af' : '2px solid white'};
+          box-shadow:${isSelected ? '0 4px 16px rgba(30,64,175,0.5)' : '0 2px 8px rgba(0,0,0,0.35)'};
+          transition:all 0.2s;
+          background:#e2e8f0;
+          flex-shrink:0;
+        ">
+          <img
+            src="${imgUrl || parkingIconSvg}"
+            style="width:100%;height:100%;object-fit:cover;display:block;"
+            onerror="this.src='${parkingIconSvg}'"
+          />
+        </div>
+        <div style="
+          background:${isSelected ? '#1e40af' : '#2563eb'};
           color:white;
           font-weight:700;
-          font-size:12px;
-          padding:4px 10px;
+          font-size:11px;
+          padding:2px 8px;
           border-radius:999px;
-          border:2px solid white;
-          box-shadow:0 2px 8px rgba(0,0,0,0.3);
-          transform:${selectedFacility === f.id ? 'scale(1.2)' : 'scale(1)'};
-          transition:transform 0.2s;
+          border:1.5px solid white;
+          box-shadow:0 1px 4px rgba(0,0,0,0.25);
           white-space:nowrap;
+          transition:all 0.2s;
         ">
-          ${price > 0 ? `₹${price}` : f.name.substring(0, 6)}
+          ${price > 0 ? `₹${price}/hr` : f.name.substring(0, 6)}
         </div>`;
 
       el.addEventListener('click', () => {
         setSelectedFacility(f.id);
+        // Sync selected facility to URL
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev);
+          next.set('selected', f.id);
+          return next;
+        }, { replace: true });
         // Scroll card into view
         const card = document.getElementById(`facility-card-${f.id}`);
         card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
 
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([f.lng, f.lat])
-        .setPopup(new maplibregl.Popup({ offset: 25, closeButton: false }).setHTML(
-          `<div style="font-size:13px;padding:4px">
-            <strong>${f.name}</strong><br/>
-            <span style="color:#555">${f.addressLine1 || ''}, ${f.city || ''}</span><br/>
-            <span style="color:#2563eb;font-weight:600">${price > 0 ? '₹' + price + '/hr' : 'Contact for price'}</span>
-          </div>`
-        ))
-        .addTo(map.current!);
+      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([f.lng, f.lat]);
 
+      // ── Build rich popup with image carousel ──────────────────────
+      const popupOffsets: any = {
+        'top': [0, 10],
+        'top-left': [0, 10],
+        'top-right': [0, 10],
+        'bottom': [0, -70],
+        'bottom-left': [0, -70],
+        'bottom-right': [0, -70],
+        'left': [-25, -35],
+        'right': [25, -35]
+      };
+      const popup = new maplibregl.Popup({ offset: popupOffsets, closeButton: true, maxWidth: '280px' });
+
+      const popupId = `popup-carousel-${f.id}`;
+
+      // Initial popup HTML with cover photo (or placeholder)
+      popup.setHTML(`
+        <div style="width:260px;border-radius:12px;overflow:hidden;font-family:system-ui,sans-serif;box-shadow:none;">
+          <!-- Carousel wrapper -->
+          <div id="${popupId}" style="position:relative;width:260px;height:160px;background:#e2e8f0;overflow:hidden;">
+            <div id="${popupId}-track" style="display:flex;height:100%;transition:transform 0.4s ease;">
+              <img
+                src="${imgUrl || parkingIconSvg}"
+                style="min-width:260px;height:160px;object-fit:cover;flex-shrink:0;"
+                onerror="this.src='${parkingIconSvg}'"
+              />
+            </div>
+            <!-- Prev button -->
+            <button id="${popupId}-prev"
+              style="display:none;position:absolute;left:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.45);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1;z-index:5;"
+              onclick="(function(){var t=document.getElementById('${popupId}-track');var idx=parseInt(t.dataset.idx||'0');var total=parseInt(t.dataset.total||'1');idx=(idx-1+total)%total;t.style.transform='translateX(-'+(idx*260)+'px)';t.dataset.idx=idx;var dots=document.querySelectorAll('#${popupId}-dots span');dots.forEach(function(d,i){d.style.opacity=i===idx?'1':'0.4';});})()">&#8249;</button>
+            <!-- Next button -->
+            <button id="${popupId}-next"
+              style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.45);border:none;color:white;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1;z-index:5;"
+              onclick="(function(){var t=document.getElementById('${popupId}-track');var idx=parseInt(t.dataset.idx||'0');var total=parseInt(t.dataset.total||'1');idx=(idx+1)%total;t.style.transform='translateX(-'+(idx*260)+'px)';t.dataset.idx=idx;var dots=document.querySelectorAll('#${popupId}-dots span');dots.forEach(function(d,i){d.style.opacity=i===idx?'1':'0.4';});})()">&#8250;</button>
+            <!-- Dots -->
+            <div id="${popupId}-dots" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:5px;z-index:5;"></div>
+            <!-- Loading shimmer -->
+            <div id="${popupId}-loading" style="position:absolute;inset:0;background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;display:none;"></div>
+          </div>
+          <!-- Info -->
+          <div style="padding:10px 12px 12px;">
+            <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.addressLine1 || ''}, ${f.city || ''}</div>
+            <div style="font-size:14px;font-weight:700;color:#2563eb;">${price > 0 ? '₹' + price + '/hr' : 'Contact for price'}</div>
+          </div>
+        </div>
+      `);
+
+      // When popup opens, fetch all photos and build carousel
+      popup.on('open', () => {
+        const track = document.getElementById(`${popupId}-track`);
+        const prevBtn = document.getElementById(`${popupId}-prev`);
+        const nextBtn = document.getElementById(`${popupId}-next`);
+        const dotsContainer = document.getElementById(`${popupId}-dots`);
+        if (!track) return;
+
+        let autoTimer: ReturnType<typeof setInterval> | null = null;
+
+        const goTo = (idx: number, total: number) => {
+          track.style.transform = `translateX(-${idx * 260}px)`;
+          (track as any).dataset.idx = idx;
+          const dots = dotsContainer?.querySelectorAll('span') || [];
+          dots.forEach((d: any, i: number) => { d.style.opacity = i === idx ? '1' : '0.4'; });
+        };
+
+        const startAuto = (total: number) => {
+          if (autoTimer) clearInterval(autoTimer);
+          if (total < 2) return;
+          autoTimer = setInterval(() => {
+            const cur = parseInt((track as any).dataset.idx || '0');
+            goTo((cur + 1) % total, total);
+          }, 3000);
+        };
+
+        fetch(`${API}/facilities/${f.id}`)
+          .then(r => r.json())
+          .then(data => {
+            const photos: string[] = (data.data?.photos || []).map((p: any) => p.url).filter(Boolean);
+            if (photos.length === 0 && imgUrl) photos.push(imgUrl);
+            if (photos.length === 0) return; // keep placeholder
+
+            // Build slides
+            track.innerHTML = photos.map(url =>
+              `<img src="${url}" style="min-width:260px;height:160px;object-fit:cover;flex-shrink:0;" onerror="this.src='${parkingIconSvg}'" />`
+            ).join('');
+            (track as any).dataset.idx = '0';
+            (track as any).dataset.total = String(photos.length);
+
+            if (photos.length > 1) {
+              // Show nav buttons
+              if (prevBtn) prevBtn.style.display = 'flex';
+              if (nextBtn) nextBtn.style.display = 'flex';
+              // Build dots
+              if (dotsContainer) {
+                dotsContainer.style.display = 'flex';
+                dotsContainer.innerHTML = photos.map((_, i) =>
+                  `<span style="width:7px;height:7px;border-radius:50%;background:white;opacity:${i === 0 ? '1' : '0.4'};cursor:pointer;display:inline-block;" onclick="(function(){var t=document.getElementById('${popupId}-track');var dots=document.querySelectorAll('#${popupId}-dots span');t.style.transform='translateX(-${i * 260}px)';t.dataset.idx='${i}';dots.forEach(function(d,j){d.style.opacity=j===${i}?'1':'0.4';});})()"></span>`
+                ).join('');
+              }
+              startAuto(photos.length);
+            }
+          })
+          .catch(() => {}); // silently fail — cover photo already shown
+
+        // Stop auto-scroll when popup closes
+        popup.once('close', () => { if (autoTimer) clearInterval(autoTimer); });
+      });
+
+      marker.setPopup(popup).addTo(map.current!);
       markerRefs.push(marker);
     });
   }, [facilities, selectedFacility]);
@@ -278,13 +489,39 @@ export default function SearchPage() {
           <div className="w-px h-10 bg-slate-200 mx-1" />
 
           <div className="flex items-center gap-2">
-            <div className="flex flex-col px-3 py-1 border border-slate-300 rounded-lg min-w-[130px] cursor-pointer hover:border-blue-400">
-              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Start time</span>
-              <span className="text-sm font-medium">{new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}, 12:00 PM</span>
+            <div className="flex flex-col px-3 py-1 border border-slate-300 rounded-lg min-w-[130px] cursor-pointer hover:border-blue-400 bg-white">
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Start time</span>
+              <div className="flex gap-2">
+                <input 
+                  type="date" 
+                  className="text-xs font-semibold text-slate-900 bg-transparent outline-none w-full cursor-pointer"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                />
+                <input 
+                  type="time" 
+                  className="text-xs font-semibold text-slate-900 bg-transparent outline-none w-full cursor-pointer"
+                  value={startTime}
+                  onChange={e => setStartTime(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="flex flex-col px-3 py-1 border border-slate-300 rounded-lg min-w-[130px] cursor-pointer hover:border-blue-400">
-              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">End time</span>
-              <span className="text-sm font-medium">{new Date(Date.now() + 4 * 86400000).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}, 12:00 PM</span>
+            <div className="flex flex-col px-3 py-1 border border-slate-300 rounded-lg min-w-[130px] cursor-pointer hover:border-blue-400 bg-white">
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">End time</span>
+              <div className="flex gap-2">
+                <input 
+                  type="date" 
+                  className="text-xs font-semibold text-slate-900 bg-transparent outline-none w-full cursor-pointer"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                />
+                <input 
+                  type="time" 
+                  className="text-xs font-semibold text-slate-900 bg-transparent outline-none w-full cursor-pointer"
+                  value={endTime}
+                  onChange={e => setEndTime(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -339,6 +576,11 @@ export default function SearchPage() {
                   className={`bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-blue-500 ring-2 ring-blue-100 shadow-md' : 'border-slate-200'}`}
                   onClick={() => {
                     setSelectedFacility(res.id);
+                    setSearchParams(prev => {
+                      const next = new URLSearchParams(prev);
+                      next.set('selected', res.id);
+                      return next;
+                    }, { replace: true });
                     if (res.lat && res.lng && map.current) {
                       map.current.flyTo({ center: [res.lng, res.lat], zoom: 15 });
                     }
@@ -383,6 +625,7 @@ export default function SearchPage() {
                   <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
                     <Link
                       to={`/facilities/${res.id}`}
+                      state={{ fromSearch: true, startISO: currentStartISO, endISO: currentEndISO }}
                       className="flex-1 text-center text-blue-600 font-semibold text-xs border border-blue-200 py-2 rounded-lg hover:bg-blue-50 transition-colors"
                       onClick={e => e.stopPropagation()}
                     >
@@ -390,6 +633,7 @@ export default function SearchPage() {
                     </Link>
                     <Link
                       to={`/facilities/${res.id}`}
+                      state={{ fromSearch: true, startISO: currentStartISO, endISO: currentEndISO }}
                       className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs transition-colors"
                       onClick={e => e.stopPropagation()}
                     >

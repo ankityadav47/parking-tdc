@@ -27,6 +27,8 @@ export default function DashboardPage() {
   const isLoading = fLoading || eLoading || rLoading;
   const activeCount = facilities?.filter((f: any) => f.status === 'active').length || 0;
   const pendingCount = facilities?.filter((f: any) => f.status === 'pending_review').length || 0;
+  // Sum real bookings from each facility's _count
+  const totalFacilityBookings = (facilities || []).reduce((sum: number, f: any) => sum + (f._count?.reservations ?? 0), 0);
 
   if (isLoading) {
     return (
@@ -91,7 +93,7 @@ export default function DashboardPage() {
             <ArrowUpRight className="w-4 h-4 text-green-500" />
           </div>
           <div className="text-2xl font-black text-slate-900">
-            {earnings?.bookingCount || 0}
+            {earnings?.bookingCount ?? totalFacilityBookings}
           </div>
           <div className="text-sm font-medium text-slate-600 mt-0.5">Total Bookings</div>
           <div className="text-xs text-slate-400 mt-1">Confirmed & completed</div>

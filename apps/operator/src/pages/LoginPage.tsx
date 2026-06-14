@@ -17,7 +17,7 @@ export default function LoginPage() {
     try {
       const response = await api.post('/auth/login', { email, password });
       const { user, accessToken } = response.data.data;
-      
+
       if (user.role !== 'operator' && user.role !== 'admin') {
         setError('Access denied. This portal is for operators only.');
         return;
@@ -93,7 +93,7 @@ export default function LoginPage() {
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20 flex items-center justify-center gap-2"
             >
               {loading ? (
-                <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg> Signing in...</>
+                <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg> Signing in...</>
               ) : 'Sign In'}
             </button>
           </form>
@@ -106,7 +106,7 @@ export default function LoginPage() {
           </p>
           <p className="text-xs text-slate-400">
             Are you a driver?{' '}
-            <a href="http://localhost:5173" className="text-blue-600 hover:underline font-medium">Go to ParkSpot →</a>
+            <a href="https://parkspot.thedigitalcaptain.com/" className="text-blue-600 hover:underline font-medium">Go to ParkSpot →</a>
           </p>
         </div>
       </div>

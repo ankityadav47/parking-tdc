@@ -1,18 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { MapPin, Star, ShieldCheck, Info, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api } from '../api';
 
 export default function FacilityDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const fromSearch = location.state?.fromSearch;
   const [facility, setFacility] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [date, setDate] = useState('2026-06-12');
-  const [startTime, setStartTime] = useState('14:00');
-  const [endTime, setEndTime] = useState('17:00');
+  const getInitialDates = () => {
+    if (location.state?.startISO && location.state?.endISO) {
+      const sDate = new Date(location.state.startISO);
+      const eDate = new Date(location.state.endISO);
+      return {
+        d: sDate.toISOString().split('T')[0],
+        s: sDate.toTimeString().slice(0, 5),
+        e: eDate.toTimeString().slice(0, 5)
+      };
+    }
+    const now = new Date();
+    const d = now.toISOString().split('T')[0];
+    const s = new Date(now.getTime() + 60*60*1000).toTimeString().slice(0, 5);
+    const e = new Date(now.getTime() + 4*60*60*1000).toTimeString().slice(0, 5);
+    return { d, s, e };
+  };
+
+  const init = getInitialDates();
+  const [date, setDate] = useState(init.d);
+  const [startTime, setStartTime] = useState(init.s);
+  const [endTime, setEndTime] = useState(init.e);
 
   useEffect(() => {
     async function loadFacility() {
@@ -50,7 +71,16 @@ export default function FacilityDetailPage() {
   // Find hourly rate for display
   const hourlyRule = facility.rateRules?.find((r: any) => r.rateType === 'hourly');
   const pricePerHour = hourlyRule ? hourlyRule.priceCents / 100 : 0;
-  const total = pricePerHour * 3; // Mock calculation for 3 hours
+  
+  const getHours = (start: string, end: string) => {
+    const [sH, sM] = start.split(':').map(Number);
+    const [eH, eM] = end.split(':').map(Number);
+    let diff = (eH + eM/60) - (sH + sM/60);
+    if (diff <= 0) diff += 24;
+    return diff;
+  };
+  const hours = getHours(startTime, endTime);
+  const total = pricePerHour * hours;
   
   // Format amenities
   const activeAmenities: string[] = [];
@@ -72,9 +102,12 @@ export default function FacilityDetailPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Back Link */}
-        <Link to="/search" className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 mb-6 transition-colors">
+        <button
+          onClick={() => fromSearch ? navigate(-1) : navigate('/search')}
+          className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 mb-6 transition-colors"
+        >
           <ArrowLeft className="w-4 h-4" /> Back to Search
-        </Link>
+        </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Details */}
@@ -200,8 +233,8 @@ export default function FacilityDetailPage() {
               {/* Price Breakdown */}
               <div className="bg-slate-50 rounded-2xl p-4 mb-6 space-y-3">
                 <div className="flex justify-between text-sm text-slate-600">
-                  <span>₹{pricePerHour} × 3 hours</span>
-                  <span className="font-medium text-slate-900">₹{total}</span>
+                  <span>₹{pricePerHour} × {hours.toFixed(1)} hours</span>
+                  <span className="font-medium text-slate-900">₹{total.toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-slate-600">
                   <span>Taxes & Fees</span>
@@ -214,7 +247,7 @@ export default function FacilityDetailPage() {
                 </div>
               </div>
 
-              <Link to={`/checkout/${id}`} className="block">
+              <Link to={`/checkout/${id}`} state={{ date, startTime, endTime, total, pricePerHour, facility, hours }} className="block">
                 <Button size="lg" className="w-full text-lg shadow-blue-600/25 shadow-lg">
                   Book Now
                 </Button>

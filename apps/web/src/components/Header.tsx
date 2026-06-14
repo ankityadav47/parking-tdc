@@ -20,12 +20,12 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
           <a href="#" className="hover:text-blue-600">About</a>
           <a href="#" className="hover:text-blue-600">Contact Sales</a>
-          <a href="http://localhost:5174" target="_blank" rel="noopener noreferrer" className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition-colors font-bold">
+          <a href="https://operatorparking.thedigitalcaptain.com/" target="_blank" rel="noopener noreferrer" className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition-colors font-bold">
             For Business
           </a>
-          
+
           <div className="w-px h-4 bg-gray-300 mx-2"></div>
-          
+
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
               <span className="text-gray-900">{user?.fullName}</span>

@@ -77,7 +77,19 @@ export class FacilitiesService {
   async getOperatorFacilities(operatorId: string) {
     return this.prisma.facility.findMany({
       where: { operatorId },
-      include: { amenities: true, photos: { where: { isCover: true }, take: 1 } },
+      include: { 
+        amenities: true, 
+        photos: { where: { isCover: true }, take: 1 },
+        _count: {
+          select: {
+            reservations: {
+              where: {
+                status: { in: ['pending', 'confirmed', 'completed'] }
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
