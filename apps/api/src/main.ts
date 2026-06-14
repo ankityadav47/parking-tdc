@@ -3,6 +3,9 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
+import { join } from 'path';
+import * as express from 'express';
+import * as fs from 'fs';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -22,6 +25,13 @@ async function bootstrap() {
     contentSecurityPolicy: process.env.NODE_ENV === 'production',
   }));
   app.use(compression());
+
+  // ─── Static file serving for uploads ──────────────────────────────────────
+  const uploadsDir = join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
 
   // ─── CORS ──────────────────────────────────────────────────────────────────
   app.enableCors({
