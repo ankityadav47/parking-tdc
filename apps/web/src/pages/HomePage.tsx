@@ -10,26 +10,10 @@ export default function HomePage() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 1, 0, 0, 0);
-    return d.toISOString().split('T')[0];
-  });
-  const [startTime, setStartTime] = useState(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 1, 0, 0, 0);
-    return d.toTimeString().slice(0, 5);
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 4, 0, 0, 0);
-    return d.toISOString().split('T')[0];
-  });
-  const [endTime, setEndTime] = useState(() => {
-    const d = new Date();
-    d.setHours(d.getHours() + 4, 0, 0, 0);
-    return d.toTimeString().slice(0, 5);
-  });
+  // Set default times to tomorrow noon -> 3pm
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateStr = tomorrow.toISOString().split('T')[0];
 
   useEffect(() => {
     fetch('https://ghostwhite-badger-995775.hostingersite.com/api/v1/config')
@@ -87,13 +71,11 @@ export default function HomePage() {
     e.preventDefault();
     if (!address) return;
 
-    const startObj = new Date(`${startDate}T${startTime}:00`);
-    const endObj = new Date(`${endDate}T${endTime}:00`);
-
+    // Default search params
     const searchParams = new URLSearchParams({
       address,
-      start: startObj.toISOString(),
-      end: endObj.toISOString(),
+      start: `${dateStr}T12:00:00Z`,
+      end: `${dateStr}T15:00:00Z`,
     });
 
     navigate(`/search?${searchParams.toString()}`);
@@ -158,44 +140,18 @@ export default function HomePage() {
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                       <Calendar className="h-5 w-5 text-slate-400" />
                     </div>
-                    <div className="w-full pl-12 pr-4 py-2 bg-white border border-slate-300 rounded-xl flex flex-col justify-center">
-                      <span className="text-xs text-slate-500 font-medium mb-0.5">Start Time</span>
-                      <div className="flex gap-2">
-                        <input 
-                          type="date" 
-                          className="text-sm font-semibold text-slate-900 bg-transparent outline-none w-full cursor-pointer"
-                          value={startDate}
-                          onChange={e => setStartDate(e.target.value)}
-                        />
-                        <input 
-                          type="time" 
-                          className="text-sm font-semibold text-slate-900 bg-transparent outline-none w-full cursor-pointer"
-                          value={startTime}
-                          onChange={e => setStartTime(e.target.value)}
-                        />
-                      </div>
+                    <div className="w-full pl-12 pr-4 py-3 bg-white border border-slate-300 rounded-xl flex flex-col justify-center">
+                      <span className="text-xs text-slate-500 font-medium">Start Time</span>
+                      <span className="text-sm font-semibold text-slate-900">Tomorrow at 12:00 PM</span>
                     </div>
                   </div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                       <Clock className="h-5 w-5 text-slate-400" />
                     </div>
-                    <div className="w-full pl-12 pr-4 py-2 bg-white border border-slate-300 rounded-xl flex flex-col justify-center">
-                      <span className="text-xs text-slate-500 font-medium mb-0.5">End Time</span>
-                      <div className="flex gap-2">
-                        <input 
-                          type="date" 
-                          className="text-sm font-semibold text-slate-900 bg-transparent outline-none w-full cursor-pointer"
-                          value={endDate}
-                          onChange={e => setEndDate(e.target.value)}
-                        />
-                        <input 
-                          type="time" 
-                          className="text-sm font-semibold text-slate-900 bg-transparent outline-none w-full cursor-pointer"
-                          value={endTime}
-                          onChange={e => setEndTime(e.target.value)}
-                        />
-                      </div>
+                    <div className="w-full pl-12 pr-4 py-3 bg-white border border-slate-300 rounded-xl flex flex-col justify-center">
+                      <span className="text-xs text-slate-500 font-medium">End Time</span>
+                      <span className="text-sm font-semibold text-slate-900">Tomorrow at 3:00 PM</span>
                     </div>
                   </div>
                 </div>

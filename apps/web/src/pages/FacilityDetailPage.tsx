@@ -14,15 +14,6 @@ export default function FacilityDetailPage() {
   const [error, setError] = useState('');
 
   const getInitialDates = () => {
-    if (location.state?.startISO && location.state?.endISO) {
-      const sDate = new Date(location.state.startISO);
-      const eDate = new Date(location.state.endISO);
-      return {
-        d: sDate.toISOString().split('T')[0],
-        s: sDate.toTimeString().slice(0, 5),
-        e: eDate.toTimeString().slice(0, 5)
-      };
-    }
     const now = new Date();
     const d = now.toISOString().split('T')[0];
     const s = new Date(now.getTime() + 60*60*1000).toTimeString().slice(0, 5);

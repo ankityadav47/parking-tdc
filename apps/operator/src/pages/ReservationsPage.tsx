@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, QrCode, AlertCircle, Clock, CheckCircle, CalendarClock } from 'lucide-react';
+import { Search, QrCode, AlertCircle } from 'lucide-react';
 import { operatorApi } from '../api/operator';
 
 const STATUS_STYLE: Record<string, string> = {
@@ -12,72 +12,6 @@ const STATUS_STYLE: Record<string, string> = {
 
 function formatINR(cents: number): string {
   return '₹' + Math.round(cents / 100).toLocaleString('en-IN');
-}
-
-/**
- * Compute a human-readable "time remaining" label for a booking.
- * Returns an object with { label, type } where type is:
- *  - 'upcoming' – booking hasn't started yet
- *  - 'active'   – driver is currently parked
- *  - 'done'     – booking has ended
- */
-function getTimeStatus(startAt: string | null, endAt: string | null) {
-  if (!startAt || !endAt) return null;
-
-  const now = Date.now();
-  const start = new Date(startAt).getTime();
-  const end = new Date(endAt).getTime();
-
-  if (now < start) {
-    // Upcoming
-    const diffMs = start - now;
-    const diffH = Math.floor(diffMs / 3600000);
-    const diffM = Math.floor((diffMs % 3600000) / 60000);
-    if (diffH > 24) {
-      const diffD = Math.floor(diffH / 24);
-      return { label: `Starts in ${diffD}d`, type: 'upcoming' as const };
-    }
-    return { label: diffH > 0 ? `Starts in ${diffH}h ${diffM}m` : `Starts in ${diffM}m`, type: 'upcoming' as const };
-  }
-
-  if (now >= start && now < end) {
-    // Active — time remaining
-    const diffMs = end - now;
-    const diffH = Math.floor(diffMs / 3600000);
-    const diffM = Math.floor((diffMs % 3600000) / 60000);
-    return { label: diffH > 0 ? `${diffH}h ${diffM}m left` : `${diffM}m left`, type: 'active' as const };
-  }
-
-  // Ended
-  return { label: 'Ended', type: 'done' as const };
-}
-
-const TIME_STATUS_STYLE = {
-  upcoming: 'bg-blue-50 text-blue-700 border border-blue-200',
-  active: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  done: 'bg-slate-100 text-slate-500 border border-slate-200',
-};
-
-/** Renders time status badge; re-renders every 30s so countdowns stay live */
-function TimeStatusBadge({ startAt, endAt }: { startAt: string | null; endAt: string | null }) {
-  const [, forceUpdate] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => forceUpdate(n => n + 1), 30_000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const status = getTimeStatus(startAt, endAt);
-  if (!status) return <span className="text-slate-400 text-xs">—</span>;
-
-  const Icon = status.type === 'upcoming' ? CalendarClock : status.type === 'active' ? Clock : CheckCircle;
-
-  return (
-    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${TIME_STATUS_STYLE[status.type]}`}>
-      <Icon className="w-3 h-3 flex-shrink-0" />
-      {status.label}
-    </span>
-  );
 }
 
 export default function ReservationsPage() {
@@ -122,10 +56,9 @@ export default function ReservationsPage() {
     .filter((r: any) => {
       if (!search) return true;
       const driverName = (r.driver?.fullName || '').toLowerCase();
-      const passCode = (r.passCode || r.code || '').toLowerCase();
-      const facilityName = (r.facility?.name || '').toLowerCase();
+      const passCode = (r.passCode || '').toLowerCase();
       const term = search.toLowerCase();
-      return driverName.includes(term) || passCode.includes(term) || facilityName.includes(term);
+      return driverName.includes(term) || passCode.includes(term);
     });
 
   return (
@@ -141,7 +74,7 @@ export default function ReservationsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search driver, facility or pass..."
+            placeholder="Search driver or pass code..."
             className="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-xl outline-none text-sm focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -169,85 +102,59 @@ export default function ReservationsPage() {
               <th className="px-5 py-3">Booking</th>
               <th className="px-5 py-3">Driver</th>
               <th className="px-5 py-3 hidden md:table-cell">Facility</th>
-              <th className="px-5 py-3 hidden lg:table-cell">Date &amp; Time</th>
-              <th className="px-5 py-3 hidden lg:table-cell">Duration</th>
+              <th className="px-5 py-3 hidden lg:table-cell">Date & Time</th>
               <th className="px-5 py-3">Amount</th>
               <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3">Time Remaining</th>
               <th className="px-5 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-5 py-10 text-center text-slate-400">
+                <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
                   No reservations found. They'll appear here once drivers start booking your facilities.
                 </td>
               </tr>
             ) : (
-              filtered.map((r: any) => {
-                // Compute duration string
-                let durationStr = '—';
-                if (r.startAt && r.endAt) {
-                  const diffMs = new Date(r.endAt).getTime() - new Date(r.startAt).getTime();
-                  const diffH = Math.floor(diffMs / 3600000);
-                  const diffM = Math.floor((diffMs % 3600000) / 60000);
-                  durationStr = diffH > 0 ? `${diffH}h ${diffM}m` : `${diffM}m`;
-                }
-
-                return (
-                  <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                        {r.passCode || r.code || r.id.slice(0, 8).toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="font-medium text-slate-900">{r.driver?.fullName || '—'}</div>
-                      <div className="text-xs text-slate-500">{r.driver?.email || ''}</div>
-                    </td>
-                    <td className="px-5 py-3.5 hidden md:table-cell text-slate-600">
-                      {r.facility?.name || '—'}
-                    </td>
-                    <td className="px-5 py-3.5 hidden lg:table-cell">
-                      <div className="text-slate-700">
-                        {r.startAt ? new Date(r.startAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {r.startAt ? new Date(r.startAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
-                        {' – '}
-                        {r.endAt ? new Date(r.endAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 hidden lg:table-cell">
-                      <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
-                        {durationStr}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-bold text-slate-900">
-                      {r.totalCents ? formatINR(r.totalCents) : r.basePriceCents ? formatINR(r.basePriceCents) : '—'}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUS_STYLE[r.status] || 'bg-slate-100 text-slate-600'}`}>
-                        {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {/* Only show live countdown for active/confirmed/pending bookings */}
-                      {(r.status === 'confirmed' || r.status === 'pending') ? (
-                        <TimeStatusBadge startAt={r.startAt} endAt={r.endAt} />
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <button className="text-slate-400 hover:text-blue-600 transition-colors" title="Scan QR">
-                        <QrCode className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
+              filtered.map((r: any) => (
+                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                      {r.passCode || r.id.slice(0, 8).toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="font-medium text-slate-900">{r.driver?.fullName || '—'}</div>
+                    <div className="text-xs text-slate-500">{r.driver?.email || ''}</div>
+                  </td>
+                  <td className="px-5 py-3.5 hidden md:table-cell text-slate-600">
+                    {r.facility?.name || '—'}
+                  </td>
+                  <td className="px-5 py-3.5 hidden lg:table-cell">
+                    <div className="text-slate-700">
+                      {r.startAt ? new Date(r.startAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {r.startAt ? new Date(r.startAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                      {' – '}
+                      {r.endAt ? new Date(r.endAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 font-bold text-slate-900">
+                    {r.basePriceCents ? formatINR(r.basePriceCents) : '—'}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUS_STYLE[r.status] || 'bg-slate-100 text-slate-600'}`}>
+                      {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <button className="text-slate-400 hover:text-blue-600 transition-colors" title="Scan QR">
+                      <QrCode className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

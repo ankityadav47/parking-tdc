@@ -45,9 +45,9 @@ export class BookingsService {
   async createBooking(data: CreateBookingData) {
     const { facilityId, start, end, vehicleId, businessProfileId, promoCode, idempotencyKey, driverId } = data;
 
-    // Validate window — allow up to 5 min in the past (clock drift / network latency)
+    // Validate window
     if (start >= end) throw new BadRequestException('end must be after start');
-    if (start < new Date(Date.now() - 5 * 60 * 1000)) throw new BadRequestException('start time is too far in the past');
+    if (start < new Date()) throw new BadRequestException('start must be in the future');
 
     // Idempotency check
     const existing = await this.prisma.reservation.findUnique({
