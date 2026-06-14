@@ -26,9 +26,13 @@ async function bootstrap() {
   // ─── CORS ──────────────────────────────────────────────────────────────────
   app.enableCors({
     origin: [
-      process.env.WEB_ORIGIN || 'http://localhost:5173',
-      process.env.OPERATOR_ORIGIN || 'http://localhost:5174',
-      process.env.ADMIN_ORIGIN || 'http://localhost:5175',
+      (process.env.WEB_ORIGIN || 'http://localhost:5173').trim(),
+      (process.env.OPERATOR_ORIGIN || 'http://localhost:5174').trim(),
+      (process.env.ADMIN_ORIGIN || 'http://localhost:5175').trim(),
+      /thedigitalcaptain\.com$/,
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
