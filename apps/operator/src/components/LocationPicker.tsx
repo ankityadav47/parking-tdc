@@ -3,6 +3,7 @@ import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { MapPin, Search, X } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { API_BASE_URL } from '../api';
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY as string;
 
@@ -50,7 +51,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
 
   // Fetch map provider config
   useEffect(() => {
-    fetch('https://ghostwhite-badger-995775.hostingersite.com/api/v1/config')
+    fetch(`${API_BASE_URL}/config`)
       .then(r => r.json())
       .then(d => {
         if (d?.data?.mapProvider) {
@@ -87,7 +88,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             }))
           );
         } else if (mapProvider === 'google') {
-          const res = await fetch(`https://ghostwhite-badger-995775.hostingersite.com/api/v1/search/autocomplete?q=${encodeURIComponent(query)}`);
+          const res = await fetch(`${API_BASE_URL}/search/autocomplete?q=${encodeURIComponent(query)}`);
           const data = await res.json();
           setSuggestions(
             data.data?.predictions?.map((p: any) => ({

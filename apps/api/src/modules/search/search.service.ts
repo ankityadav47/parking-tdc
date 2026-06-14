@@ -80,12 +80,12 @@ export class SearchService {
 
     const overlapCounts = candidateIds.length > 0
       ? await this.prisma.$queryRaw<Array<{ facility_id: string; overlapping: bigint }>>`
-          SELECT facility_id, count(*) AS overlapping
+          SELECT "facilityId" AS facility_id, count(*) AS overlapping
           FROM reservations
-          WHERE facility_id = ANY(${candidateIds}::uuid[])
+          WHERE "facilityId" = ANY(${candidateIds}::uuid[])
             AND status IN ('pending', 'confirmed')
-            AND tstzrange(start_at, end_at) && tstzrange(${start}::timestamptz, ${end}::timestamptz)
-          GROUP BY facility_id
+            AND tstzrange("startAt", "endAt") && tstzrange(${start}::timestamptz, ${end}::timestamptz)
+          GROUP BY "facilityId"
         `
       : [];
 

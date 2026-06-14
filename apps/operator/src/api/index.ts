@@ -1,6 +1,6 @@
 import { ApiClient } from '@parkspot/api-client';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://ghostwhite-badger-995775.hostingersite.com/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://ghostwhite-badger-995775.hostingersite.com/api/v1';
 
 export const apiClient = new ApiClient(API_BASE_URL);
 export const api = apiClient.instance;
