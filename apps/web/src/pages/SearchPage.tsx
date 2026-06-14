@@ -5,7 +5,7 @@ import { Search, MapPin, Star, PlaneTakeoff, Filter, ChevronDown, Navigation } f
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-const API = 'https://ghostwhite-badger-995775.hostingersite.com/api/v1';
+const API = import.meta.env.VITE_API_BASE_URL || 'https://ghostwhite-badger-995775.hostingersite.com/api/v1';
 
 function getPrice(rateRules: any[]): number {
   if (!rateRules || rateRules.length === 0) return 0;

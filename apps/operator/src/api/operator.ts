@@ -25,4 +25,14 @@ export const operatorApi = {
     const res = await api.post(`/operator/facilities/${id}/submit`);
     return res.data.data;
   },
+
+  getReservations: async () => {
+    const res = await api.get('/operator/reservations');
+    return res.data.data;
+  },
+
+  getEarnings: async () => {
+    const res = await api.get('/operator/earnings');
+    return res.data.data;
+  },
 };

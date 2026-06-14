@@ -5,3 +5,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://ghostwhite-ba
 export const apiClient = new ApiClient(API_BASE_URL);
 
 export const api = apiClient.instance;
+
+// When refresh fails (session expired), redirect to login
+apiClient.setOnAuthFailure(() => {
+    localStorage.removeItem('driver_access_token');
+    localStorage.removeItem('driver_token');
+    window.location.href = '/login';
+});

@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Request, Response } from 'express';
@@ -22,7 +23,7 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 export class AuthController {
 
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -62,7 +63,7 @@ export class AuthController {
       (req.body as { refreshToken?: string })?.refreshToken;
 
     if (!refreshToken) {
-      return { error: { code: 'UNAUTHORIZED', message: 'No refresh token' } };
+      throw new UnauthorizedException('No refresh token provided');
     }
 
     const tokens = await this.authService.refresh(refreshToken);
@@ -125,9 +126,9 @@ export class AuthController {
     res.cookie('refresh_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      path: '/api/v1/auth/refresh',
+      path: '/api',
     });
   }
 }

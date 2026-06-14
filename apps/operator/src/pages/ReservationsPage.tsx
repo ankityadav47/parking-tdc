@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
-import { MapPin, Search, QrCode } from 'lucide-react';
-
-const RESERVATIONS = [
-  { id: 'RES-201', driver: 'Arjun Mehta', vehicle: 'KA01AB1234', facility: 'MG Road Parking', date: 'Jun 12, 2026', time: '2:00 PM – 5:00 PM', amount: '₹360', status: 'confirmed' },
-  { id: 'RES-200', driver: 'Priya Sharma', vehicle: 'KA05CD5678', facility: 'Koramangala Lot B', date: 'Jun 12, 2026', time: '9:00 AM – 12:00 PM', amount: '₹270', status: 'confirmed' },
-  { id: 'RES-199', driver: 'Rohan Das', vehicle: 'MH02EF9012', facility: 'MG Road Parking', date: 'Jun 12, 2026', time: '6:00 PM – 9:00 PM', amount: '₹420', status: 'pending' },
-  { id: 'RES-198', driver: 'Sneha Patel', vehicle: 'KA01GH3456', facility: 'Indiranagar Garage', date: 'Jun 11, 2026', time: '8:00 AM – 10:00 AM', amount: '₹180', status: 'completed' },
-  { id: 'RES-197', driver: 'Vikram Singh', vehicle: 'DL09IJ7890', facility: 'MG Road Parking', date: 'Jun 11, 2026', time: '11:00 AM – 2:00 PM', amount: '₹270', status: 'completed' },
-  { id: 'RES-196', driver: 'Kavya Nair', vehicle: 'TN07KL2345', facility: 'Koramangala Lot B', date: 'Jun 10, 2026', time: '4:00 PM – 8:00 PM', amount: '₹480', status: 'cancelled' },
-];
+import { useQuery } from '@tanstack/react-query';
+import { Search, QrCode, AlertCircle } from 'lucide-react';
+import { operatorApi } from '../api/operator';
 
 const STATUS_STYLE: Record<string, string> = {
   confirmed: 'bg-green-50 text-green-700',
@@ -17,13 +10,56 @@ const STATUS_STYLE: Record<string, string> = {
   cancelled: 'bg-red-50 text-red-600',
 };
 
+function formatINR(cents: number): string {
+  return '₹' + Math.round(cents / 100).toLocaleString('en-IN');
+}
+
 export default function ReservationsPage() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
-  const filtered = RESERVATIONS
-    .filter(r => filter === 'all' || r.status === filter)
-    .filter(r => r.driver.toLowerCase().includes(search.toLowerCase()) || r.id.toLowerCase().includes(search.toLowerCase()));
+  const { data: reservations, isLoading, error, refetch } = useQuery({
+    queryKey: ['operator-reservations'],
+    queryFn: operatorApi.getReservations,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-slate-500 font-medium">Loading reservations...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    const errMsg = (error as any)?.response?.data?.error?.message || (error as any)?.message || 'Failed to load reservations';
+    return (
+      <div className="p-8 text-center">
+        <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-8 h-8 text-red-500" />
+        </div>
+        <h3 className="font-bold text-slate-800 text-lg">Failed to Load Reservations</h3>
+        <p className="text-slate-500 text-sm mt-1 mb-4">{errMsg}</p>
+        <button
+          onClick={() => refetch()}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-xl text-sm transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const filtered = (reservations || [])
+    .filter((r: any) => filter === 'all' || r.status === filter)
+    .filter((r: any) => {
+      if (!search) return true;
+      const driverName = (r.driver?.fullName || '').toLowerCase();
+      const passCode = (r.passCode || '').toLowerCase();
+      const term = search.toLowerCase();
+      return driverName.includes(term) || passCode.includes(term);
+    });
 
   return (
     <div className="space-y-6">
@@ -38,7 +74,7 @@ export default function ReservationsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search driver or ID..."
+            placeholder="Search driver or pass code..."
             className="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-xl outline-none text-sm focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -73,42 +109,55 @@ export default function ReservationsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map(r => (
-              <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-5 py-3.5">
-                  <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{r.id}</span>
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="font-semibold text-slate-900">{r.driver}</div>
-                  <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3 h-3" />{r.vehicle}
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-slate-600 hidden md:table-cell">{r.facility}</td>
-                <td className="px-5 py-3.5 hidden lg:table-cell">
-                  <div className="text-slate-700">{r.date}</div>
-                  <div className="text-xs text-slate-400">{r.time}</div>
-                </td>
-                <td className="px-5 py-3.5 font-bold text-slate-900">{r.amount}</td>
-                <td className="px-5 py-3.5">
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLE[r.status]}`}>
-                    {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5">
-                  {r.status === 'confirmed' && (
-                    <button className="flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium">
-                      <QrCode className="w-3.5 h-3.5" /> Validate
-                    </button>
-                  )}
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
+                  No reservations found. They'll appear here once drivers start booking your facilities.
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((r: any) => (
+                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                      {r.passCode || r.id.slice(0, 8).toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="font-medium text-slate-900">{r.driver?.fullName || '—'}</div>
+                    <div className="text-xs text-slate-500">{r.driver?.email || ''}</div>
+                  </td>
+                  <td className="px-5 py-3.5 hidden md:table-cell text-slate-600">
+                    {r.facility?.name || '—'}
+                  </td>
+                  <td className="px-5 py-3.5 hidden lg:table-cell">
+                    <div className="text-slate-700">
+                      {r.startAt ? new Date(r.startAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {r.startAt ? new Date(r.startAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                      {' – '}
+                      {r.endAt ? new Date(r.endAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 font-bold text-slate-900">
+                    {r.basePriceCents ? formatINR(r.basePriceCents) : '—'}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUS_STYLE[r.status] || 'bg-slate-100 text-slate-600'}`}>
+                      {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <button className="text-slate-400 hover:text-blue-600 transition-colors" title="Scan QR">
+                      <QrCode className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-slate-400 text-sm">No reservations found.</div>
-        )}
       </div>
     </div>
   );

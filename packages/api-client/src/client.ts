@@ -13,6 +13,7 @@ export class ApiClient {
     resolve: (value?: unknown) => void;
     reject: (reason?: unknown) => void;
   }> = [];
+  private onAuthFailure: (() => void) | null = null;
 
   constructor(baseURL: string) {
     this.api = axios.create({
@@ -28,6 +29,10 @@ export class ApiClient {
 
   setToken(token: string | null) {
     this.token = token;
+  }
+
+  setOnAuthFailure(callback: () => void) {
+    this.onAuthFailure = callback;
   }
 
   private setupInterceptors() {
@@ -103,6 +108,10 @@ export class ApiClient {
               localStorage.removeItem('operator_access_token');
               localStorage.removeItem('driver_access_token');
               localStorage.removeItem('admin_access_token');
+            }
+            // Notify the app to redirect to login
+            if (this.onAuthFailure) {
+              this.onAuthFailure();
             }
             return Promise.reject(refreshError);
           } finally {

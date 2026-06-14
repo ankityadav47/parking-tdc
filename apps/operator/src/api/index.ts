@@ -10,3 +10,10 @@ const savedToken = localStorage.getItem('operator_access_token');
 if (savedToken) {
   apiClient.setToken(savedToken);
 }
+
+// When refresh fails (session expired), redirect to login
+apiClient.setOnAuthFailure(() => {
+  localStorage.removeItem('operator_access_token');
+  localStorage.removeItem('operator_token');
+  window.location.href = '/login';
+});

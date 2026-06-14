@@ -12,12 +12,31 @@ const STATUS_CONFIG: Record<string, { label: string; style: string; icon: React.
 };
 
 export default function FacilitiesPage() {
-  const { data: facilities, isLoading } = useQuery({
+  const { data: facilities, isLoading, error, refetch } = useQuery({
     queryKey: ['operator-facilities'],
     queryFn: operatorApi.getFacilities,
   });
 
   if (isLoading) return <div className="p-8 text-slate-500 font-medium">Loading facilities...</div>;
+
+  if (error) {
+    const errMsg = (error as any)?.response?.data?.error?.message || (error as any)?.message || 'Failed to load facilities';
+    return (
+      <div className="p-8 text-center">
+        <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <XCircle className="w-8 h-8 text-red-500" />
+        </div>
+        <h3 className="font-bold text-slate-800 text-lg">Failed to Load Facilities</h3>
+        <p className="text-slate-500 text-sm mt-1 mb-4">{errMsg}</p>
+        <button
+          onClick={() => refetch()}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-xl text-sm transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

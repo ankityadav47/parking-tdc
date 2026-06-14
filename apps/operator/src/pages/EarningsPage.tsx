@@ -1,18 +1,51 @@
-import React, { useState } from 'react';
-import { TrendingUp, DollarSign, Download } from 'lucide-react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { TrendingUp, DollarSign, Download, AlertCircle } from 'lucide-react';
+import { operatorApi } from '../api/operator';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-const REVENUE = [42000, 56000, 61000, 55000, 72000, 84200];
-const MAX_REV = Math.max(...REVENUE);
-
-const PAYOUTS = [
-  { period: 'May 2026', bookings: 118, gross: '₹71,400', fee: '₹7,140', net: '₹64,260', status: 'paid', date: 'Jun 5, 2026' },
-  { period: 'Apr 2026', bookings: 99, gross: '₹54,450', fee: '₹5,445', net: '₹49,005', status: 'paid', date: 'May 5, 2026' },
-  { period: 'Mar 2026', bookings: 87, gross: '₹60,900', fee: '₹6,090', net: '₹54,810', status: 'paid', date: 'Apr 5, 2026' },
-];
+function formatINR(cents: number): string {
+  return '₹' + Math.round(cents / 100).toLocaleString('en-IN');
+}
 
 export default function EarningsPage() {
-  const [period, setPeriod] = useState('jun');
+  const { data: earnings, isLoading, error, refetch } = useQuery({
+    queryKey: ['operator-earnings'],
+    queryFn: operatorApi.getEarnings,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-slate-500 font-medium">Loading earnings data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    const errMsg = (error as any)?.response?.data?.error?.message || (error as any)?.message || 'Failed to load earnings';
+    return (
+      <div className="p-8 text-center">
+        <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-8 h-8 text-red-500" />
+        </div>
+        <h3 className="font-bold text-slate-800 text-lg">Failed to Load Earnings</h3>
+        <p className="text-slate-500 text-sm mt-1 mb-4">{errMsg}</p>
+        <button
+          onClick={() => refetch()}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-xl text-sm transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const rev = earnings?.totalRevenueCents || 0;
+  const fee = earnings?.platformFeeCents || 0;
+  const net = earnings?.netEarningsCents || 0;
+  const bookings = earnings?.bookingCount || 0;
+  const feeRate = rev > 0 ? Math.round((fee / rev) * 100) : 10;
 
   return (
     <div className="space-y-6">
@@ -29,79 +62,74 @@ export default function EarningsPage() {
       {/* Top Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center mb-3"><DollarSign className="w-5 h-5 text-green-600" /></div>
-          <div className="text-2xl font-black text-slate-900">₹84,200</div>
-          <div className="text-sm text-slate-500 mt-0.5">June Gross Revenue</div>
-          <div className="text-xs text-green-600 font-semibold mt-1">+22% vs May</div>
+          <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center mb-3">
+            <DollarSign className="w-5 h-5 text-green-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900">{formatINR(rev)}</div>
+          <div className="text-sm text-slate-500 mt-0.5">Gross Revenue</div>
+          <div className="text-xs text-slate-400 mt-1">All confirmed bookings</div>
         </div>
+
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mb-3"><TrendingUp className="w-5 h-5 text-blue-600" /></div>
-          <div className="text-2xl font-black text-slate-900">₹75,780</div>
-          <div className="text-sm text-slate-500 mt-0.5">June Net Payout (est.)</div>
-          <div className="text-xs text-slate-400 mt-1">After 10% platform fee</div>
+          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mb-3">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900">{formatINR(net)}</div>
+          <div className="text-sm text-slate-500 mt-0.5">Net Earnings</div>
+          <div className="text-xs text-slate-400 mt-1">After {feeRate}% platform fee</div>
         </div>
+
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center mb-3"><DollarSign className="w-5 h-5 text-amber-600" /></div>
-          <div className="text-2xl font-black text-slate-900">142</div>
-          <div className="text-sm text-slate-500 mt-0.5">Bookings This Month</div>
-          <div className="text-xs text-green-600 font-semibold mt-1">+18% vs May</div>
+          <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center mb-3">
+            <DollarSign className="w-5 h-5 text-amber-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900">{bookings}</div>
+          <div className="text-sm text-slate-500 mt-0.5">Total Bookings</div>
+          <div className="text-xs text-slate-400 mt-1">Confirmed & completed</div>
         </div>
       </div>
 
-      {/* Revenue Chart */}
+      {/* Revenue Breakdown */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h2 className="font-bold text-slate-900 mb-6">Monthly Revenue (2026)</h2>
-        <div className="flex items-end gap-3 h-40">
-          {MONTHS.map((m, i) => (
-            <div key={m} className="flex-1 flex flex-col items-center gap-2">
-              <div className="text-xs font-bold text-slate-600">₹{(REVENUE[i] / 1000).toFixed(0)}k</div>
-              <div
-                className="w-full rounded-t-lg transition-all"
-                style={{
-                  height: `${(REVENUE[i] / MAX_REV) * 100}%`,
-                  background: i === MONTHS.length - 1 ? '#2563eb' : '#bfdbfe',
-                }}
-              />
-              <div className={`text-xs font-semibold ${i === MONTHS.length - 1 ? 'text-blue-600' : 'text-slate-400'}`}>{m}</div>
+        <h2 className="font-bold text-slate-900 mb-5">Revenue Breakdown</h2>
+
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between text-sm mb-1.5">
+              <span className="text-slate-600">Gross Revenue</span>
+              <span className="font-bold text-slate-900">{formatINR(rev)}</span>
             </div>
-          ))}
+            <div className="w-full bg-slate-100 rounded-full h-2.5">
+              <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '100%' }} />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between text-sm mb-1.5">
+              <span className="text-slate-600">Platform Fee ({feeRate}%)</span>
+              <span className="font-bold text-slate-900">-{formatINR(fee)}</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2.5">
+              <div className="bg-amber-400 h-2.5 rounded-full" style={{ width: rev > 0 ? `${(fee / rev) * 100}%` : '0%' }} />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between text-sm mb-1.5">
+              <span className="text-slate-600 font-semibold">Net Earnings</span>
+              <span className="font-bold text-blue-600">{formatINR(net)}</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2.5">
+              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: rev > 0 ? `${(net / rev) * 100}%` : '0%' }} />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Payout History */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="font-bold text-slate-900">Payout History</h2>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              <th className="px-5 py-3">Period</th>
-              <th className="px-5 py-3 hidden sm:table-cell">Bookings</th>
-              <th className="px-5 py-3">Gross</th>
-              <th className="px-5 py-3 hidden md:table-cell">Fee (10%)</th>
-              <th className="px-5 py-3">Net Payout</th>
-              <th className="px-5 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {PAYOUTS.map(p => (
-              <tr key={p.period} className="hover:bg-slate-50">
-                <td className="px-5 py-3.5">
-                  <div className="font-semibold text-slate-900">{p.period}</div>
-                  <div className="text-xs text-slate-400">{p.date}</div>
-                </td>
-                <td className="px-5 py-3.5 text-slate-600 hidden sm:table-cell">{p.bookings}</td>
-                <td className="px-5 py-3.5 font-medium text-slate-900">{p.gross}</td>
-                <td className="px-5 py-3.5 text-red-500 hidden md:table-cell">-{p.fee}</td>
-                <td className="px-5 py-3.5 font-black text-slate-900">{p.net}</td>
-                <td className="px-5 py-3.5">
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-50 text-green-700">Paid</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Summary Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+        <p className="font-semibold mb-1">How earnings work:</p>
+        <p>Revenue is calculated from all confirmed and completed bookings across your facilities. Platform fee is applied per booking. Payouts are processed at the end of each billing cycle.</p>
       </div>
     </div>
   );
