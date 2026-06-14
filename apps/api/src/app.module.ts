@@ -20,8 +20,15 @@ import { OperatorModule } from './modules/operator/operator.module';
 import { HealthModule } from './modules/health/health.module';
 import { appConfig, authConfig, razorpayConfig, mapsConfig, storageConfig } from './config/configuration';
 
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+    }),
     // ─── Config ──────────────────────────────────────────────────────────────
     ConfigModule.forRoot({
       isGlobal: true,

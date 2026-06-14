@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Check, Building2, MapPin, DollarSign, Settings } from 'lucide-react';
+import { Camera, Image as ImageIcon, Trash2, ChevronRight, ChevronLeft, Check, Building2, MapPin, DollarSign, Settings } from 'lucide-react';
 import LocationPicker, { PickedLocation } from '../components/LocationPicker';
 import { operatorApi } from '../api/operator';
 
-const STEPS = ['Basic Info', 'Location', 'Pricing', 'Amenities & Submit'];
+const STEPS = ['Basic Info', 'Location', 'Pricing', 'Photos', 'Amenities & Submit'];
 
 type FormData = {
   name: string; description: string; type: string; totalCapacity: string;
@@ -61,6 +61,7 @@ export default function CreateFacilityPage() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>(INITIAL);
   const [location, setLocation] = useState<PickedLocation | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -111,7 +112,12 @@ export default function CreateFacilityPage() {
         });
       }
 
-      // 3. Update amenities
+      // 3. Upload photos
+      for (const photo of photos) {
+        await operatorApi.uploadPhoto(facilityId, photo);
+      }
+
+      // 4. Update amenities
       await operatorApi.updateAmenities(facilityId, {
         covered: form.covered,
         evCharging: form.evCharging,
@@ -242,8 +248,70 @@ export default function CreateFacilityPage() {
           </div>
         )}
 
-        {/* Step 3: Amenities + Review */}
+        {/* Step 3: Photos */}
         {step === 3 && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 mb-6 text-blue-600">
+              <Camera className="w-5 h-5" />
+              <h2 className="font-bold text-lg text-slate-900">Upload Photos</h2>
+            </div>
+            
+            <p className="text-sm text-slate-500 mb-4">
+              Upload clear photos of the entrance, parking spots, and surrounding area. High-quality photos increase bookings.
+            </p>
+
+            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer relative">
+              <input
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setPhotos(prev => [...prev, ...Array.from(e.target.files!)]);
+                  }
+                }}
+              />
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">Click or drag images here</p>
+                  <p className="text-xs text-slate-500 mt-1">JPEG, PNG, WEBP (Max 5MB each)</p>
+                </div>
+              </div>
+            </div>
+
+            {photos.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                {photos.map((photo, i) => (
+                  <div key={i} className="relative rounded-xl overflow-hidden aspect-video border border-slate-200 group">
+                    <img 
+                      src={URL.createObjectURL(photo)} 
+                      alt={`Preview ${i}`} 
+                      className="w-full h-full object-cover" 
+                    />
+                    <button
+                      onClick={() => setPhotos(photos.filter((_, index) => index !== i))}
+                      className="absolute top-2 right-2 p-1.5 bg-white/90 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    {i === 0 && (
+                      <span className="absolute bottom-2 left-2 px-2 py-1 bg-slate-900/80 text-white text-[10px] font-bold rounded uppercase tracking-wide">
+                        Cover
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: Amenities + Review */}
+        {step === 4 && (
           <div className="space-y-5">
             <div className="flex items-center gap-2 mb-6 text-blue-600">
               <Settings className="w-5 h-5" />
@@ -272,6 +340,7 @@ export default function CreateFacilityPage() {
                 <span className="font-mono text-xs">{location ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : '—'}</span>
               </div>
               <div className="flex justify-between"><span className="text-slate-500">Hourly Rate</span><span className="font-medium">₹{form.hourlyRate || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Photos</span><span className="font-medium">{photos.length} attached</span></div>
             </div>
 
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700">

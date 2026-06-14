@@ -26,6 +26,15 @@ export const operatorApi = {
     return res.data.data;
   },
 
+  uploadPhoto: async (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post(`/operator/facilities/${id}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.data;
+  },
+
   getReservations: async () => {
     const res = await api.get('/operator/reservations');
     return res.data.data;

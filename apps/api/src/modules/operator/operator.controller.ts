@@ -59,6 +59,54 @@ export class OperatorController {
     return { data: await this.facilitiesService.submitForReview(id, op.id) };
   }
 
+  @Post('facilities/:id/photos')
+  @UseInterceptors(require('@nestjs/platform-express').FileInterceptor('file'))
+  async uploadPhoto(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File
+  ) {
+    const user = req.user as { id: string };
+    const op = await this.getOperatorProfile(user.id);
+    // Verify ownership
+    await this.facilitiesService.getFacility(id, true); // Throws if not found
+
+    const sharp = require('sharp');
+    const fs = require('fs');
+    const path = require('path');
+
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const filename = `facility-${id}-${Date.now()}.webp`;
+    const filepath = path.join(uploadsDir, filename);
+
+    // Optimize and reduce size with sharp
+    await sharp(file.buffer)
+      .resize(1200, 800, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toFile(filepath);
+
+    const fileUrl = `${process.env.API_BASE_URL || 'http://localhost:4000'}/uploads/${filename}`;
+
+    // Count existing photos to determine sortOrder
+    const existingCount = await this.prisma.facilityPhoto.count({ where: { facilityId: id } });
+
+    // Save to DB
+    const photo = await this.prisma.facilityPhoto.create({
+      data: {
+        facilityId: id,
+        url: fileUrl,
+        sortOrder: existingCount,
+        isCover: existingCount === 0, // First photo is cover
+      }
+    });
+
+    return { data: photo };
+  }
+
   @Post('facilities/:id/amenities')
   async updateAmenities(@Req() req: Request, @Param('id') id: string, @Body() body: Record<string, boolean>) {
     const user = req.user as { id: string };
