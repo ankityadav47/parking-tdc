@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, QrCode, MapPin, Calendar, Clock, CarFront, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -7,16 +7,7 @@ import { api } from '../api';
 
 export default function ConfirmationPage() {
   const { id } = useParams();
-  const [mapProvider, setMapProvider] = useState<'google' | 'openfreemap'>('google');
-
-  useEffect(() => {
-    fetch('https://ghostwhite-badger-995775.hostingersite.com/api/v1/config')
-      .then(r => r.json())
-      .then(d => {
-        if (d?.data?.mapProvider) setMapProvider(d.data.mapProvider);
-      })
-      .catch(e => console.error('Failed to load map config', e));
-  }, []);
+  const navigate = useNavigate();
 
   const { data: booking, isLoading, isError } = useQuery({
     queryKey: ['booking', id],
@@ -52,14 +43,20 @@ export default function ConfirmationPage() {
   }
 
   const handleDirections = () => {
-    if (booking?.facility?.addressLine1) {
-      if (mapProvider === 'openfreemap' && booking.facility.lat && booking.facility.lng) {
-        const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=;${booking.facility.lat},${booking.facility.lng}`;
-        window.open(url, '_blank');
-      } else {
-        const address = `${booking.facility.addressLine1}, ${booking.facility.city}, ${booking.facility.state}`;
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
-      }
+    if (!booking?.facility) return;
+
+    const lat = booking.facility.lat ? Number(booking.facility.lat) : null;
+    const lng = booking.facility.lng ? Number(booking.facility.lng) : null;
+    const name = encodeURIComponent(booking.facility.name || 'Parking Facility');
+
+    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+      navigate(`/directions?destLat=${lat}&destLng=${lng}&destName=${name}`);
+    } else if (booking.facility.addressLine1) {
+      // No coords stored – pass address so DirectionsPage can geocode it
+      const addr = encodeURIComponent(
+        `${booking.facility.addressLine1}, ${booking.facility.city}, ${booking.facility.state}`
+      );
+      navigate(`/directions?destAddress=${addr}&destName=${name}`);
     }
   };
 

@@ -12,6 +12,7 @@ import CheckoutPage from './pages/CheckoutPage';
 import ConfirmationPage from './pages/ConfirmationPage';
 import DriverDashboard from './pages/DriverDashboard';
 import VehiclesPage from './pages/VehiclesPage';
+import DirectionsPage from './pages/DirectionsPage';
 
 // Protected Route wrapper
 function ProtectedRoute() {
@@ -58,6 +59,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/facilities/:id" element={<FacilityDetailPage />} />
+      <Route path="/directions" element={<DirectionsPage />} />
       
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DriverDashboard />} />

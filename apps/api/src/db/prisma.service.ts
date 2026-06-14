@@ -101,8 +101,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async setFacilityLocation(facilityId: string, lat: number, lng: number) {
     await this.$executeRaw`
       UPDATE facilities
-      SET location = ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+      SET location = ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+          lat = ${lat},
+          lng = ${lng}
       WHERE id = ${facilityId}
     `;
   }
+
 }

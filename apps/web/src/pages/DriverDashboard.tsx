@@ -226,7 +226,10 @@ export default function DriverDashboard() {
                     <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-xl text-sm transition-colors">
                       <QrCode className="w-4 h-4" /> View Pass
                     </button>
-                    <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-5 rounded-xl text-sm transition-colors">
+                    <button 
+                      onClick={() => navigate(`/directions?destLat=40.7128&destLng=-74.0060&destName=${encodeURIComponent(res.facilityName)}`)}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-5 rounded-xl text-sm transition-colors"
+                    >
                       <Navigation className="w-4 h-4" /> Get Directions
                     </button>
                     <button className="ml-auto text-sm text-red-500 hover:underline font-medium">Cancel</button>

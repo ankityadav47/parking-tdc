@@ -60,7 +60,29 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 1. Create Booking
+      // 1. Create or find vehicle, get vehicleId
+      let vehicleId: string | undefined;
+      try {
+        const vehicleRes = await api.post('/users/me/vehicles', {
+          licensePlate: licensePlate.trim().toUpperCase(),
+          state: stateRegion,
+        });
+        vehicleId = vehicleRes.data.data?.id;
+      } catch (vehicleErr: any) {
+        // If vehicle already exists (409 conflict), try to find it from the user's list
+        if (vehicleErr?.response?.status === 409 || vehicleErr?.response?.data?.statusCode === 409) {
+          try {
+            const vehiclesRes = await api.get('/users/me/vehicles');
+            const existing = vehiclesRes.data.data?.find(
+              (v: any) => v.licensePlate?.toUpperCase() === licensePlate.trim().toUpperCase()
+            );
+            vehicleId = existing?.id;
+          } catch { /* no-op, proceed without vehicleId */ }
+        }
+        // Otherwise continue without vehicleId
+      }
+
+      // 2. Create Booking
       const startObj = new Date(`${date}T${startTime}:00`);
       const endObj = new Date(`${date}T${endTime}:00`);
       if (endObj <= startObj) {
@@ -74,6 +96,7 @@ export default function CheckoutPage() {
         facilityId: id,
         start: startIso,
         end: endIso,
+        ...(vehicleId && { vehicleId }),
       });
       const reservation = bookingRes.data.data;
 

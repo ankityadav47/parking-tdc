@@ -171,6 +171,8 @@ model Facility {
   postalCode         String
   country            String         @default("US")
   // location geography(Point,4326) — added via raw migration
+  lat                Decimal?       @db.Decimal(10, 7)  // synced with PostGIS location
+  lng                Decimal?       @db.Decimal(10, 7)  // synced with PostGIS location
   timezone           String         @default("America/New_York")
   totalCapacity      Int
   heightClearanceCm  Int?
