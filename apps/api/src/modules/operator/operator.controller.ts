@@ -89,7 +89,11 @@ export class OperatorController {
       .webp({ quality: 80 })
       .toFile(filepath);
 
-    const fileUrl = `${process.env.API_BASE_URL || 'http://localhost:4000'}/uploads/${filename}`;
+    // Use request host to ensure correct routing through proxies, fallback to process.env
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const baseUrl = host ? `${protocol}://${host}/api/v1` : (process.env.API_BASE_URL || 'http://localhost:4000/api/v1');
+    const fileUrl = `${baseUrl.replace(/\/$/, '')}/uploads/${filename}`;
 
     // Count existing photos to determine sortOrder
     const existingCount = await this.prisma.facilityPhoto.count({ where: { facilityId: id } });

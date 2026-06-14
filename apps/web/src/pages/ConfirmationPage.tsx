@@ -1,10 +1,68 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, QrCode, MapPin, Calendar, Clock, CarFront, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { api } from '../api';
 
 export default function ConfirmationPage() {
-  const { id } = useParams(); // Should be DEMO-RES-123
+  const { id } = useParams();
+  const [mapProvider, setMapProvider] = useState<'google' | 'openfreemap'>('google');
+
+  useEffect(() => {
+    fetch('https://ghostwhite-badger-995775.hostingersite.com/api/v1/config')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.data?.mapProvider) setMapProvider(d.data.mapProvider);
+      })
+      .catch(e => console.error('Failed to load map config', e));
+  }, []);
+
+  const { data: booking, isLoading, isError } = useQuery({
+    queryKey: ['booking', id],
+    queryFn: async () => {
+      const res = await api.get(`/bookings/${id}`);
+      return res.data.data;
+    },
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-blue-600 font-medium">
+          <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin inline-block"></span>
+          Loading your booking...
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !booking) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center text-slate-600">
+          <p className="mb-4">Could not load booking details.</p>
+          <Link to="/dashboard">
+            <Button>Go to Dashboard</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const handleDirections = () => {
+    if (booking?.facility?.addressLine1) {
+      if (mapProvider === 'openfreemap' && booking.facility.lat && booking.facility.lng) {
+        const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=;${booking.facility.lat},${booking.facility.lng}`;
+        window.open(url, '_blank');
+      } else {
+        const address = `${booking.facility.addressLine1}, ${booking.facility.city}, ${booking.facility.state}`;
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
+      }
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20 pb-12 flex flex-col items-center">
@@ -33,15 +91,15 @@ export default function ConfirmationPage() {
             <div className="inline-block p-4 bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
               <QrCode className="w-32 h-32 text-slate-900" />
             </div>
-            <div className="font-mono text-lg font-bold text-slate-700 tracking-widest">{id}</div>
+            <div className="font-mono text-lg font-bold text-slate-700 tracking-widest">{booking.code}</div>
             <div className="text-sm text-slate-500 mt-1">Scan at entrance</div>
           </div>
 
           {/* Bottom section: Details */}
           <div className="p-8 pt-10">
-            <h2 className="font-bold text-xl text-slate-900 mb-1">MG Road Premium Covered Parking</h2>
+            <h2 className="font-bold text-xl text-slate-900 mb-1">{booking.facility?.name}</h2>
             <p className="text-slate-500 text-sm mb-6 flex items-center gap-1">
-              <MapPin className="w-4 h-4" /> 12 MG Road, Bangalore
+              <MapPin className="w-4 h-4" /> {booking.facility?.addressLine1}, {booking.facility?.city}
             </p>
 
             <div className="grid grid-cols-2 gap-y-6">
@@ -49,26 +107,26 @@ export default function ConfirmationPage() {
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" /> Arrive
                 </div>
-                <div className="font-semibold text-slate-900">Jun 12, 2026</div>
-                <div className="text-sm text-slate-600">2:00 PM</div>
+                <div className="font-semibold text-slate-900">{new Date(booking.startAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                <div className="text-sm text-slate-600">{new Date(booking.startAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5" /> Exit
                 </div>
-                <div className="font-semibold text-slate-900">Jun 12, 2026</div>
-                <div className="text-sm text-slate-600">5:00 PM</div>
+                <div className="font-semibold text-slate-900">{new Date(booking.endAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                <div className="text-sm text-slate-600">{new Date(booking.endAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                   <CarFront className="w-3.5 h-3.5" /> Vehicle
                 </div>
-                <div className="font-semibold text-slate-900">KA 01 AB 1234</div>
+                <div className="font-semibold text-slate-900">{booking.vehicle?.licensePlate || 'N/A'}</div>
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Payment</div>
-                <div className="font-semibold text-slate-900">₹319.00</div>
-                <div className="text-sm text-slate-600">Paid via Card</div>
+                <div className="font-semibold text-slate-900">₹{(booking.totalCents / 100).toFixed(0)}</div>
+                <div className="text-sm text-slate-600">Paid via {booking.payment?.status === 'succeeded' ? 'Card/UPI' : 'Unknown'}</div>
               </div>
             </div>
           </div>
@@ -76,7 +134,7 @@ export default function ConfirmationPage() {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <Button variant="outline" className="flex-1 bg-white">Get Directions</Button>
+          <Button variant="outline" className="flex-1 bg-white" onClick={handleDirections}>Get Directions</Button>
           <Link to="/dashboard" className="flex-1">
             <Button className="w-full">View My Bookings <ChevronRight className="w-4 h-4 ml-1" /></Button>
           </Link>

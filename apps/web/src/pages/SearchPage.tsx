@@ -44,9 +44,12 @@ export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [searchByMap, setSearchByMap] = useState(false); // true when map was moved by user
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const initialFetchDone = useRef(false);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Helper: sync map state into URL so back-navigation restores the view
@@ -133,6 +136,17 @@ export default function SearchPage() {
       }, 600);
     });
 
+    // Request user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+        },
+        (err) => console.error('Location permission denied or error', err)
+      );
+    }
+
     return () => {
       if (map.current) {
         map.current.remove();
@@ -140,6 +154,28 @@ export default function SearchPage() {
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Update User Location Marker ──────────────────────────────────
+  useEffect(() => {
+    if (!map.current || !userLocation) return;
+    
+    if (!userMarkerRef.current) {
+      const el = document.createElement('div');
+      el.className = 'user-location-marker';
+      el.style.width = '16px';
+      el.style.height = '16px';
+      el.style.backgroundColor = '#3b82f6';
+      el.style.border = '3px solid white';
+      el.style.borderRadius = '50%';
+      el.style.boxShadow = '0 0 10px rgba(59, 130, 246, 0.5)';
+      
+      userMarkerRef.current = new maplibregl.Marker({ element: el })
+        .setLngLat([userLocation.lng, userLocation.lat])
+        .addTo(map.current);
+    } else {
+      userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+    }
+  }, [userLocation]);
 
   // ─── When map center changes (user panned), search there ─────────
   useEffect(() => {
@@ -149,14 +185,28 @@ export default function SearchPage() {
 
   // ─── Initial load: if we have saved map coords in URL, fetch by those; else by address
   useEffect(() => {
+    if (initialFetchDone.current) {
+      if (userLocation && !address && isNaN(urlLat)) {
+        // Only fetch if we are waiting for user location and finally got it
+        map.current?.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: 13 });
+        fetchByCoords(userLocation.lat, userLocation.lng);
+      }
+      return;
+    }
+
     if (!isNaN(urlLat) && !isNaN(urlLng)) {
-      // Restored from back-navigation: fetch by the saved map center
+      initialFetchDone.current = true;
       fetchByCoords(urlLat, urlLng);
     } else if (address) {
+      initialFetchDone.current = true;
       setSearchByMap(false);
       fetchByAddress(address);
+    } else if (userLocation) {
+      initialFetchDone.current = true;
+      map.current?.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: 13 });
+      fetchByCoords(userLocation.lat, userLocation.lng);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userLocation, address, urlLat, urlLng, fetchByCoords, fetchByAddress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Place/update markers on map when facilities change ──────────
   useEffect(() => {

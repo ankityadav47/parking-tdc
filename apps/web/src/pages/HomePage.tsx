@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import { Search, MapPin, Calendar, Clock, CheckCircle, CarFront, Plane, Building2 } from 'lucide-react';
+import { Search, MapPin, Calendar, Clock, CheckCircle, CarFront, Plane, Building2, Navigation } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -9,6 +9,7 @@ export default function HomePage() {
   const [mapProvider, setMapProvider] = useState<'google' | 'openfreemap'>('google');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   // Set default times to tomorrow noon -> 3pm
   const tomorrow = new Date();
@@ -81,6 +82,34 @@ export default function HomePage() {
     navigate(`/search?${searchParams.toString()}`);
   };
 
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setIsLocating(false);
+        const { latitude, longitude } = position.coords;
+        const searchParams = new URLSearchParams({
+          address: "Current Location",
+          mlat: latitude.toString(),
+          mlng: longitude.toString(),
+          liveloc: "true",
+          start: `${dateStr}T12:00:00Z`,
+          end: `${dateStr}T15:00:00Z`,
+        });
+        navigate(`/search?${searchParams.toString()}`);
+      },
+      (error) => {
+        setIsLocating(false);
+        console.error("Error getting location", error);
+        alert("Unable to retrieve your location. Please check your browser permissions.");
+      }
+    );
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans">
       <Header />
@@ -110,7 +139,7 @@ export default function HomePage() {
                   <input
                     type="text"
                     placeholder="Where are you going?"
-                    className="w-full pl-12 pr-4 py-4 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-lg font-medium placeholder:text-slate-400 placeholder:font-normal"
+                    className="w-full pl-12 pr-12 py-4 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-lg font-medium placeholder:text-slate-400 placeholder:font-normal"
                     value={address}
                     onChange={(e) => {
                       setAddress(e.target.value);
@@ -119,6 +148,18 @@ export default function HomePage() {
                     onFocus={() => setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   />
+                  <button
+                    type="button"
+                    onClick={handleCurrentLocation}
+                    title="Use Current Location"
+                    className="absolute inset-y-0 right-4 flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    {isLocating ? (
+                      <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin inline-block"></span>
+                    ) : (
+                      <Navigation className="h-5 w-5" />
+                    )}
+                  </button>
                   {showSuggestions && suggestions.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto max-h-60">
                       {suggestions.map(s => (

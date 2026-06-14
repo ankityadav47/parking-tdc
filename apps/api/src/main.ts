@@ -33,10 +33,13 @@ async function bootstrap() {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
   // Set Cross-Origin-Resource-Policy header so browsers allow cross-origin image loads
-  app.use('/uploads', (_req: any, res: any, next: any) => {
+  const staticHandler = express.static(uploadsDir);
+  const corsMiddleware = (_req: any, res: any, next: any) => {
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     next();
-  }, express.static(uploadsDir));
+  };
+  app.use('/uploads', corsMiddleware, staticHandler);
+  app.use('/api/v1/uploads', corsMiddleware, staticHandler);
 
   // ─── CORS ──────────────────────────────────────────────────────────────────
   app.enableCors({
