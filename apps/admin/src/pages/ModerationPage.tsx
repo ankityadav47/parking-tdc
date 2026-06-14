@@ -22,11 +22,19 @@ export default function ModerationPage() {
   const approveMutation = useMutation({
     mutationFn: adminApi.approveFacility,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-facilities'] }),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message || err?.message || 'Approve failed';
+      alert('❌ ' + msg);
+    },
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => adminApi.rejectFacility(id, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-facilities'] }),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message || err?.message || 'Reject failed';
+      alert('❌ ' + msg);
+    },
   });
 
   const updateStatus = (id: string, status: 'approved' | 'rejected') => {
@@ -89,69 +97,70 @@ export default function ModerationPage() {
                   if (f.amenities.oversized) amenitiesList.push('Oversized');
                 }
                 return (
-                <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-4">
-                    <span className="font-semibold text-slate-900">{f.name}</span>
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {amenitiesList.map((a: string, i: number) => (
-                        <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{a}</span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-slate-800">{f.operator?.user?.fullName || 'Unknown Operator'}</p>
-                    <p className="text-slate-500 text-xs">{f.operator?.user?.email}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="flex items-center gap-1 text-slate-600"><MapPin className="w-3.5 h-3.5" />{f.city}</span>
-                  </td>
-                  <td className="px-5 py-4 font-medium text-slate-800">{f.totalCapacity}</td>
-                  <td className="px-5 py-4 text-slate-500">{new Date(f.createdAt).toLocaleDateString()}</td>
-                  <td className="px-5 py-4">
-                    <span className={`text-xs font-semibold border px-2.5 py-1 rounded-full ${STATUS_STYLE[f.status] || STATUS_STYLE['pending']}`}>
-                      {f.status === 'pending_review' ? 'Pending' : f.status.charAt(0).toUpperCase() + f.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setSelected(selected === f.id ? null : f.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Preview"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      {f.status === 'pending_review' && (
-                        <>
-                          <button
-                            onClick={() => updateStatus(f.id, 'approved')}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors"
-                            title="Approve"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => updateStatus(f.id, 'rejected')}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="Reject"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    {selected === f.id && (
-                      <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1 w-56">
-                        <p><strong>Name:</strong> {f.name}</p>
-                        <p><strong>Operator:</strong> {f.operator?.user?.fullName}</p>
-                        <p><strong>City:</strong> {f.city}</p>
-                        <p><strong>Spots:</strong> {f.totalCapacity}</p>
-                        <p><strong>Amenities:</strong> {amenitiesList.join(', ') || 'None'}</p>
+                  <tr key={f.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4">
+                      <span className="font-semibold text-slate-900">{f.name}</span>
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        {amenitiesList.map((a: string, i: number) => (
+                          <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{a}</span>
+                        ))}
                       </div>
-                    )}
-                  </td>
-                </tr>
-              )})}
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-slate-800">{f.operator?.user?.fullName || 'Unknown Operator'}</p>
+                      <p className="text-slate-500 text-xs">{f.operator?.user?.email}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="flex items-center gap-1 text-slate-600"><MapPin className="w-3.5 h-3.5" />{f.city}</span>
+                    </td>
+                    <td className="px-5 py-4 font-medium text-slate-800">{f.totalCapacity}</td>
+                    <td className="px-5 py-4 text-slate-500">{new Date(f.createdAt).toLocaleDateString()}</td>
+                    <td className="px-5 py-4">
+                      <span className={`text-xs font-semibold border px-2.5 py-1 rounded-full ${STATUS_STYLE[f.status] || STATUS_STYLE['pending']}`}>
+                        {f.status === 'pending_review' ? 'Pending' : f.status.charAt(0).toUpperCase() + f.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelected(selected === f.id ? null : f.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          title="Preview"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        {f.status === 'pending_review' && (
+                          <>
+                            <button
+                              onClick={() => updateStatus(f.id, 'approved')}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+                              title="Approve"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => updateStatus(f.id, 'rejected')}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title="Reject"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {selected === f.id && (
+                        <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1 w-56">
+                          <p><strong>Name:</strong> {f.name}</p>
+                          <p><strong>Operator:</strong> {f.operator?.user?.fullName}</p>
+                          <p><strong>City:</strong> {f.city}</p>
+                          <p><strong>Spots:</strong> {f.totalCapacity}</p>
+                          <p><strong>Amenities:</strong> {amenitiesList.join(', ') || 'None'}</p>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

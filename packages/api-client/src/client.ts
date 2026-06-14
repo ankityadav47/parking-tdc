@@ -47,7 +47,7 @@ export class ApiClient {
       (response) => response,
       async (error: AxiosError) => {
         const originalRequest = error.config as CustomAxiosRequestConfig;
-        
+
         if (!originalRequest) return Promise.reject(error);
 
         // If 401 and not already retrying
@@ -79,11 +79,12 @@ export class ApiClient {
 
             const newAccessToken = data.data.accessToken;
             this.setToken(newAccessToken);
-            
-            // Store token in localStorage
+
+            // Store token in localStorage (all three app variants)
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('operator_access_token', newAccessToken);
-              localStorage.setItem('driver_access_token', newAccessToken); // just in case this client is used in web
+              localStorage.setItem('driver_access_token', newAccessToken);
+              localStorage.setItem('admin_access_token', newAccessToken);
             }
 
             this.processQueue(null, newAccessToken);
@@ -101,6 +102,7 @@ export class ApiClient {
             if (typeof localStorage !== 'undefined') {
               localStorage.removeItem('operator_access_token');
               localStorage.removeItem('driver_access_token');
+              localStorage.removeItem('admin_access_token');
             }
             return Promise.reject(refreshError);
           } finally {
