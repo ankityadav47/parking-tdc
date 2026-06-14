@@ -1,0 +1,451 @@
+// ============================================================
+// ParkSpot — Prisma Schema
+// DB: PostgreSQL 15+ with PostGIS extension
+// NOTE: The `location` geography column on Facility is added
+//       via a raw SQL migration; Prisma doesn't model PostGIS
+//       natively so we use prisma.$queryRaw for geo queries.
+// ============================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  driver
+  operator
+  admin
+}
+
+enum FacilityType {
+  garage
+  lot
+  valet
+}
+
+enum FacilityStatus {
+  draft
+  pending_review
+  active
+  paused
+  rejected
+}
+
+enum ReservationStatus {
+  pending
+  confirmed
+  cancelled
+  completed
+  no_show
+  expired
+}
+
+enum RateType {
+  hourly
+  daily
+  monthly
+  event
+  flat
+}
+
+enum PayoutStatus {
+  pending
+  enabled
+  restricted
+}
+
+enum PaymentStatus {
+  requires_payment
+  processing
+  succeeded
+  failed
+  refunded
+  partially_refunded
+}
+
+// ─── Users & Auth ────────────────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String?
+  fullName        String
+  phone           String?
+  role            Role      @default(driver)
+  status          String    @default("active") // active | suspended
+  emailVerifiedAt DateTime?
+
+  // Relations
+  vehicles        Vehicle[]
+  reservations    Reservation[]
+  reviews         Review[]
+  operatorProfile OperatorProfile?
+  businessProfile BusinessProfile?
+  notifications   Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model OperatorProfile {
+  id            String      @id @default(uuid())
+  userId        String      @unique
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName   String
+  razorpayAccountId String?  // Razorpay linked account id
+  payoutStatus  PayoutStatus @default(pending)
+  verifiedAt    DateTime?
+
+  facilities    Facility[]
+  payouts       Payout[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("operator_profiles")
+}
+
+model BusinessProfile {
+  id           String @id @default(uuid())
+  userId       String @unique
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName  String
+  taxId        String?
+  billingEmail String
+
+  reservations Reservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("business_profiles")
+}
+
+// ─── Vehicles ─────────────────────────────────────────────────────────────────
+
+model Vehicle {
+  id           String @id @default(uuid())
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licensePlate String
+  state        String
+  make         String?
+  model        String?
+  color        String?
+  isDefault    Boolean @default(false)
+
+  reservations Reservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("vehicles")
+}
+
+// ─── Facilities ───────────────────────────────────────────────────────────────
+
+model Facility {
+  id                 String         @id @default(uuid())
+  operatorId         String
+  operator           OperatorProfile @relation(fields: [operatorId], references: [id])
+  name               String
+  description        String?
+  type               FacilityType
+  addressLine1       String
+  addressLine2       String?
+  city               String
+  state              String
+  postalCode         String
+  country            String         @default("US")
+  // location geography(Point,4326) — added via raw migration
+  timezone           String         @default("America/New_York")
+  totalCapacity      Int
+  heightClearanceCm  Int?
+  accessInstructions String?
+  status             FacilityStatus @default(draft)
+  avgRating          Decimal?       @db.Decimal(2, 1)
+  reviewCount        Int            @default(0)
+
+  // Relations
+  amenities          FacilityAmenity?
+  photos             FacilityPhoto[]
+  rateRules          RateRule[]
+  availabilityBlocks AvailabilityBlock[]
+  reservations       Reservation[]
+  reviews            Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([operatorId])
+  @@map("facilities")
+}
+
+model FacilityAmenity {
+  id               String  @id @default(uuid())
+  facilityId       String  @unique
+  facility         Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  covered          Boolean @default(false)
+  evCharging       Boolean @default(false)
+  adaAccessible    Boolean @default(false)
+  valet            Boolean @default(false)
+  inOutPrivileges  Boolean @default(false)
+  gated            Boolean @default(false)
+  attended         Boolean @default(false)
+  motorcycle       Boolean @default(false)
+  oversized        Boolean @default(false)
+
+  @@map("facility_amenities")
+}
+
+model FacilityPhoto {
+  id         String   @id @default(uuid())
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  url        String
+  sortOrder  Int      @default(0)
+  isCover    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([facilityId])
+  @@map("facility_photos")
+}
+
+// ─── Rate Rules ───────────────────────────────────────────────────────────────
+
+model RateRule {
+  id           String    @id @default(uuid())
+  facilityId   String
+  facility     Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  rateType     RateType
+  priceCents   Int
+  minMinutes   Int?
+  maxMinutes   Int?
+  dayOfWeekMask Int?     // bitmask Mon=1..Sun=64
+  startTime    String?   // HH:MM
+  endTime      String?   // HH:MM
+  validFrom    DateTime? // event/seasonal
+  validTo      DateTime?
+  priority     Int       @default(0)
+  active       Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([facilityId, priority])
+  @@map("rate_rules")
+}
+
+model AvailabilityBlock {
+  id               String   @id @default(uuid())
+  facilityId       String
+  facility         Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  startAt          DateTime
+  endAt            DateTime
+  capacityOverride Int?     // null = full blackout
+  reason           String?
+
+  createdAt DateTime @default(now())
+
+  @@index([facilityId, startAt, endAt])
+  @@map("availability_blocks")
+}
+
+// ─── Reservations ─────────────────────────────────────────────────────────────
+
+model Reservation {
+  id                String            @id @default(uuid())
+  code              String            @unique
+  driverId          String
+  driver            User              @relation(fields: [driverId], references: [id])
+  facilityId        String
+  facility          Facility          @relation(fields: [facilityId], references: [id])
+  vehicleId         String?
+  vehicle           Vehicle?          @relation(fields: [vehicleId], references: [id])
+  businessProfileId String?
+  businessProfile   BusinessProfile?  @relation(fields: [businessProfileId], references: [id])
+
+  startAt           DateTime
+  endAt             DateTime
+  status            ReservationStatus @default(pending)
+  holdExpiresAt     DateTime?
+
+  basePriceCents    Int
+  serviceFeeCents   Int
+  taxCents          Int
+  totalCents        Int
+  currency          String            @default("USD")
+  cancellationPolicy Json?            // snapshot at booking
+  idempotencyKey    String?           @unique
+
+  payment           Payment?
+  pass              Pass?
+  review            Review?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([facilityId, startAt, endAt])
+  @@index([driverId])
+  @@index([status, holdExpiresAt])
+  @@index([code])
+  @@map("reservations")
+}
+
+// ─── Passes ───────────────────────────────────────────────────────────────────
+
+model Pass {
+  id            String      @id @default(uuid())
+  reservationId String      @unique
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  qrData        String
+  qrCodeUrl     String?     // S3 URL of rendered QR image
+
+  createdAt DateTime @default(now())
+
+  @@map("passes")
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id                String        @id @default(uuid())
+  reservationId     String        @unique
+  reservation       Reservation   @relation(fields: [reservationId], references: [id])
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?
+  amountCents       Int
+  currency          String        @default("USD")
+  status            PaymentStatus @default(requires_payment)
+  receiptUrl        String?
+
+  refunds           Refund[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+  @@map("payments")
+}
+
+model Refund {
+  id                String  @id @default(uuid())
+  paymentId         String
+  payment           Payment @relation(fields: [paymentId], references: [id])
+  razorpayRefundId  String  @unique
+  amountCents       Int
+  reason            String?
+  status            String  @default("pending") // pending | processed | failed
+
+  createdAt DateTime @default(now())
+
+  @@map("refunds")
+}
+
+// ─── Payouts ──────────────────────────────────────────────────────────────────
+
+model Payout {
+  id                String          @id @default(uuid())
+  operatorId        String
+  operator          OperatorProfile @relation(fields: [operatorId], references: [id])
+  razorpayTransferId String?
+  amountCents       Int
+  currency          String          @default("USD")
+  periodStart       DateTime
+  periodEnd         DateTime
+  status            String          @default("pending") // pending | processing | paid | failed
+  reservationIds    Json?           // array of reservation ids
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payouts")
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+model Review {
+  id            String      @id @default(uuid())
+  reservationId String      @unique
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  facilityId    String
+  facility      Facility    @relation(fields: [facilityId], references: [id])
+  driverId      String
+  driver        User        @relation(fields: [driverId], references: [id])
+  rating        Int         // 1–5
+  comment       String?
+  createdAt     DateTime    @default(now())
+
+  @@index([facilityId])
+  @@map("reviews")
+}
+
+// ─── Promo Codes ─────────────────────────────────────────────────────────────
+
+model PromoCode {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  type           String    // percent | fixed
+  value          Int       // % or cents
+  maxRedemptions Int?
+  usedCount      Int       @default(0)
+  validFrom      DateTime?
+  validTo        DateTime?
+  minAmountCents Int?
+  active         Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([code])
+  @@map("promo_codes")
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  channel   String    // email | sms | push
+  payload   Json
+  sentAt    DateTime?
+  readAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@map("audit_logs")
+}
