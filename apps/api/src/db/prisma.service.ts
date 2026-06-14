@@ -88,9 +88,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const result = await this.$queryRaw<[{ count: bigint }]>`
       SELECT count(*) AS count
       FROM reservations
-      WHERE facility_id = ${facilityId}
+      WHERE "facilityId" = ${facilityId}
         AND status IN ('pending', 'confirmed')
-        AND tstzrange(start_at, end_at) && tstzrange(${start}::timestamptz, ${end}::timestamptz)
+        AND tstzrange("startAt", "endAt") && tstzrange(${start}::timestamptz, ${end}::timestamptz)
     `;
     return Number(result[0].count);
   }

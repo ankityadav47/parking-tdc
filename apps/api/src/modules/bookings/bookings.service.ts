@@ -108,18 +108,18 @@ export class BookingsService {
       const result = await tx.$queryRaw<[{ count: bigint }]>`
         SELECT count(*) AS count
         FROM reservations
-        WHERE facility_id = ${facilityId}
+        WHERE "facilityId" = ${facilityId}
           AND status IN ('pending', 'confirmed')
-          AND tstzrange(start_at, end_at) && tstzrange(${start}::timestamptz, ${end}::timestamptz)
+          AND tstzrange("startAt", "endAt") && tstzrange(${start}::timestamptz, ${end}::timestamptz)
       `;
       const overlapping = Number(result[0].count);
 
       // Check availability_blocks capacity overrides
       const blockResult = await tx.$queryRaw<[{ min_capacity: number | null }]>`
-        SELECT MIN(COALESCE(capacity_override, 0)) AS min_capacity
+        SELECT MIN(COALESCE("capacityOverride", 0)) AS min_capacity
         FROM availability_blocks
-        WHERE facility_id = ${facilityId}
-          AND tstzrange(start_at, end_at) && tstzrange(${start}::timestamptz, ${end}::timestamptz)
+        WHERE "facilityId" = ${facilityId}
+          AND tstzrange("startAt", "endAt") && tstzrange(${start}::timestamptz, ${end}::timestamptz)
       `;
       const effectiveCapacity =
         blockResult[0].min_capacity !== null

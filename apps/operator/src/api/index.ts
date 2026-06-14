@@ -15,5 +15,7 @@ if (savedToken) {
 apiClient.setOnAuthFailure(() => {
   localStorage.removeItem('operator_access_token');
   localStorage.removeItem('operator_token');
-  window.location.href = '/login';
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
 });

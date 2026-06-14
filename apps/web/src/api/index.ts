@@ -10,5 +10,7 @@ export const api = apiClient.instance;
 apiClient.setOnAuthFailure(() => {
     localStorage.removeItem('driver_access_token');
     localStorage.removeItem('driver_token');
-    window.location.href = '/login';
+    if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+    }
 });

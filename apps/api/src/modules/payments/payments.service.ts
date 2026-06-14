@@ -273,13 +273,13 @@ export class PaymentsService {
       booking_count: bigint;
     }>>`
       SELECT
-        SUM(r.base_price_cents)    AS total_revenue,
-        SUM(r.service_fee_cents)   AS platform_fee,
-        SUM(r.base_price_cents - r.service_fee_cents) AS net_earnings,
+        SUM(r."basePriceCents")    AS total_revenue,
+        SUM(r."serviceFeeCents")   AS platform_fee,
+        SUM(r."basePriceCents" - r."serviceFeeCents") AS net_earnings,
         COUNT(r.id)                AS booking_count
       FROM reservations r
-      JOIN facilities f ON f.id = r.facility_id
-      WHERE f.operator_id = ${operatorProfile.id}
+      JOIN facilities f ON f.id = r."facilityId"
+      WHERE f."operatorId" = ${operatorProfile.id}
         AND r.status IN ('confirmed', 'completed')
     `;
 
