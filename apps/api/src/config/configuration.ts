@@ -3,7 +3,7 @@ import { registerAs } from '@nestjs/config';
 export const appConfig = registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '4000', 10),
-  apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:4000',
+  apiBaseUrl: process.env.API_BASE_URL || 'https://ghostwhite-badger-995775.hostingersite.com',
   webOrigin: process.env.WEB_ORIGIN || 'http://localhost:5173',
   operatorOrigin: process.env.OPERATOR_ORIGIN || 'http://localhost:5174',
   adminOrigin: process.env.ADMIN_ORIGIN || 'http://localhost:5175',

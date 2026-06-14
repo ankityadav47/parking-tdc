@@ -7,8 +7,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY as string;
 
 setOptions({
-  apiKey: MAPS_KEY,
-  version: 'weekly',
+  key: MAPS_KEY,
+  v: 'weekly',
 });
 
 export interface PickedLocation {
@@ -29,13 +29,13 @@ interface LocationPickerProps {
 export default function LocationPicker({ value, onChange }: LocationPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const [mapProvider, setMapProvider] = useState<'google' | 'openfreemap' | null>(null);
-  
+
   // Google Map state
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [marker, setMarker] = useState<google.maps.Marker | null>(null);
-  
+
   // OpenFreeMap state (refs used directly to avoid dependency loops)
   const libreMapRef = useRef<maplibregl.Map | null>(null);
   const libreMarkerRef = useRef<maplibregl.Marker | null>(null);
@@ -44,13 +44,13 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
   const [error, setError] = useState('');
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
-  
+
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Fetch map provider config
   useEffect(() => {
-    fetch('http://localhost:4000/api/v1/config')
+    fetch('https://ghostwhite-badger-995775.hostingersite.com/api/v1/config')
       .then(r => r.json())
       .then(d => {
         if (d?.data?.mapProvider) {
@@ -87,7 +87,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             }))
           );
         } else if (mapProvider === 'google') {
-          const res = await fetch(`http://localhost:4000/api/v1/search/autocomplete?q=${encodeURIComponent(query)}`);
+          const res = await fetch(`https://ghostwhite-badger-995775.hostingersite.com/api/v1/search/autocomplete?q=${encodeURIComponent(query)}`);
           const data = await res.json();
           setSuggestions(
             data.data?.predictions?.map((p: any) => ({
@@ -109,7 +109,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
     const fullAddress = s.description ? `${s.name}, ${s.description}` : s.name;
     setQuery(fullAddress);
     setShowSuggestions(false);
-    
+
     if (s.lat && s.lng && mapProvider === 'openfreemap') {
       if (libreMapRef.current) {
         libreMapRef.current.flyTo({ center: [s.lng, s.lat], zoom: 17 });
@@ -145,8 +145,8 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
         }
       } catch (err) {
         console.error('Reverse geocode failed', err);
-        onChange({ 
-          addressLine1: 'Pinned Location', city: '', state: '', postalCode: '', country: '', lat, lng 
+        onChange({
+          addressLine1: 'Pinned Location', city: '', state: '', postalCode: '', country: '', lat, lng
         });
       }
       return;
@@ -176,9 +176,9 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
       }
     } catch (err) {
       console.error('Reverse geocode failed', err);
-      onChange({ 
-        addressLine1: 'Pinned Location (Geocoding unavailable)', 
-        city: '', state: '', postalCode: '', country: '', lat, lng 
+      onChange({
+        addressLine1: 'Pinned Location (Geocoding unavailable)',
+        city: '', state: '', postalCode: '', country: '', lat, lng
       });
     }
   }, [onChange, mapProvider]);
@@ -189,8 +189,8 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
 
     if (mapProvider === 'openfreemap') {
       if (!libreMapRef.current) {
-        const defaultCenter: [number, number] = value 
-          ? [value.lng, value.lat] 
+        const defaultCenter: [number, number] = value
+          ? [value.lng, value.lat]
           : [77.5946, 12.9716]; // Bangalore default
 
         libreMapRef.current = new maplibregl.Map({
@@ -213,7 +213,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
           libreMarkerRef.current!.setLngLat(e.lngLat);
           reverseGeocode(e.lngLat.lat, e.lngLat.lng);
         });
-        
+
         setLoading(false);
       }
       return () => {
@@ -317,7 +317,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
       const { Animation } = await importLibrary('marker') as google.maps.MarkerLibrary;
       const geocoder = new Geocoder();
       const result = await geocoder.geocode({ address: query });
-      
+
       if (result.results[0]) {
         const loc = result.results[0].geometry.location;
         map.panTo(loc);
@@ -356,8 +356,8 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-y-auto max-h-60">
               {suggestions.map(s => (
-                <div 
-                  key={s.id} 
+                <div
+                  key={s.id}
                   className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 text-left"
                   onMouseDown={() => {
                     const fullAddress = s.description ? `${s.name}, ${s.description}` : s.name;
@@ -392,8 +392,8 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
           <div className="absolute inset-0 bg-slate-100 flex items-center justify-center z-10">
             <div className="text-slate-400 text-sm flex items-center gap-2">
               <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
               Loading map...
             </div>

@@ -9,14 +9,14 @@ export default function HomePage() {
   const [mapProvider, setMapProvider] = useState<'google' | 'openfreemap'>('google');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+
   // Set default times to tomorrow noon -> 3pm
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const dateStr = tomorrow.toISOString().split('T')[0];
 
   useEffect(() => {
-    fetch('http://localhost:4000/api/v1/config')
+    fetch('https://ghostwhite-badger-995775.hostingersite.com/api/v1/config')
       .then(r => r.json())
       .then(d => {
         if (d?.data?.mapProvider) setMapProvider(d.data.mapProvider);
@@ -43,7 +43,7 @@ export default function HomePage() {
             }))
           );
         } else {
-          const res = await fetch(`http://localhost:4000/api/v1/search/autocomplete?q=${encodeURIComponent(address)}`);
+          const res = await fetch(`https://ghostwhite-badger-995775.hostingersite.com/api/v1/search/autocomplete?q=${encodeURIComponent(address)}`);
           const data = await res.json();
           setSuggestions(
             data.data?.predictions?.map((p: any) => ({
@@ -70,14 +70,14 @@ export default function HomePage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!address) return;
-    
+
     // Default search params
     const searchParams = new URLSearchParams({
       address,
       start: `${dateStr}T12:00:00Z`,
       end: `${dateStr}T15:00:00Z`,
     });
-    
+
     navigate(`/search?${searchParams.toString()}`);
   };
 
@@ -88,13 +88,13 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          
+
           {/* Left: Copy & Search */}
           <div className="space-y-8">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-tight">
               Parking made easy,<br />wherever you go
             </h1>
-            
+
             {/* Search Widget */}
             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-2 overflow-hidden">
               <div className="flex bg-slate-100 rounded-xl p-1 mb-4">
@@ -107,9 +107,9 @@ export default function HomePage() {
                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                     <Search className="h-5 w-5 text-slate-400" />
                   </div>
-                  <input 
-                    type="text" 
-                    placeholder="Where are you going?" 
+                  <input
+                    type="text"
+                    placeholder="Where are you going?"
                     className="w-full pl-12 pr-4 py-4 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-lg font-medium placeholder:text-slate-400 placeholder:font-normal"
                     value={address}
                     onChange={(e) => {
@@ -122,8 +122,8 @@ export default function HomePage() {
                   {showSuggestions && suggestions.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto max-h-60">
                       {suggestions.map(s => (
-                        <div 
-                          key={s.id} 
+                        <div
+                          key={s.id}
                           className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
                           onClick={() => handleSelectSuggestion(s)}
                         >
@@ -156,7 +156,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <button 
+                <button
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-lg"
                 >
@@ -168,9 +168,9 @@ export default function HomePage() {
 
           {/* Right: Hero Image */}
           <div className="hidden lg:block relative rounded-3xl overflow-hidden shadow-2xl h-[500px]">
-            <img 
-              src="/assets/hero_garage_woman.png" 
-              alt="Woman smiling in modern parking garage" 
+            <img
+              src="/assets/hero_garage_woman.png"
+              alt="Woman smiling in modern parking garage"
               className="absolute inset-0 w-full h-full object-cover object-center"
             />
           </div>
@@ -182,7 +182,7 @@ export default function HomePage() {
       <section className="bg-slate-50 py-20 border-y border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-16 text-slate-900">How ParkSpot Works</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="flex flex-col items-center">
               <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6 text-blue-600 shadow-sm border border-blue-200">
@@ -193,7 +193,7 @@ export default function HomePage() {
                 Search and compare prices at thousands of parking facilities across the city.
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center">
               <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 text-green-600 shadow-sm border border-green-200">
                 <CheckCircle className="w-10 h-10" />
@@ -203,7 +203,7 @@ export default function HomePage() {
                 Pay securely in advance and receive a digital parking pass instantly.
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center">
               <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mb-6 text-amber-600 shadow-sm border border-amber-200">
                 <CarFront className="w-10 h-10" />
@@ -219,7 +219,7 @@ export default function HomePage() {
 
       {/* Feature Blocks */}
       <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-32">
-        
+
         {/* Event Parking */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div className="rounded-2xl overflow-hidden shadow-xl h-80 order-2 md:order-1">
@@ -272,19 +272,19 @@ export default function HomePage() {
       <section className="bg-slate-50 py-20 border-t border-slate-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
           <h2 className="text-3xl font-bold tracking-tight">Pay and Park with Confidence</h2>
-          
+
           <div className="flex flex-wrap justify-center gap-12 md:gap-24">
             <div className="flex flex-col items-center">
               <span className="text-5xl font-black text-slate-900 tracking-tighter">4.8</span>
               <span className="text-amber-500 text-xl tracking-widest mt-1">★★★★★</span>
               <span className="text-slate-500 mt-2 font-medium">App Store Rating</span>
             </div>
-            
+
             <div className="flex flex-col items-center">
               <span className="text-5xl font-black text-slate-900 tracking-tighter">100<span className="text-blue-600 text-4xl">+</span></span>
               <span className="text-slate-500 mt-2 font-medium">Million Cars Parked</span>
             </div>
-            
+
             <div className="flex flex-col items-center">
               <span className="text-5xl font-black text-slate-900 tracking-tighter">13<span className="text-blue-600 text-4xl">+</span></span>
               <span className="text-slate-500 mt-2 font-medium">Years of Trust</span>

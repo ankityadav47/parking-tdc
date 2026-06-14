@@ -62,7 +62,7 @@ packages:
 # ---- Backend (apps/api) ----
 NODE_ENV=development
 PORT=4000
-API_BASE_URL=http://localhost:4000
+API_BASE_URL=https://ghostwhite-badger-995775.hostingersite.com
 
 # Database (PostGIS-enabled Postgres)
 DATABASE_URL=postgresql://parkspot:parkspot@localhost:5432/parkspot?schema=public
@@ -102,7 +102,7 @@ OPERATOR_ORIGIN=http://localhost:5174
 ADMIN_ORIGIN=http://localhost:5175
 
 # ---- Frontend (apps/web etc.) — Vite needs VITE_ prefix ----
-VITE_API_BASE_URL=http://localhost:4000/api/v1
+VITE_API_BASE_URL=https://ghostwhite-badger-995775.hostingersite.com/api/v1
 VITE_GOOGLE_MAPS_BROWSER_KEY=xxx      # referrer-restricted
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
 ```
@@ -162,7 +162,7 @@ pnpm --filter api prisma db seed
 
 # 5. Run everything (Turborepo runs all dev scripts)
 pnpm dev
-# api → http://localhost:4000
+# api → https://ghostwhite-badger-995775.hostingersite.com
 # web (driver) → http://localhost:5173
 # operator → http://localhost:5174
 # admin → http://localhost:5175
