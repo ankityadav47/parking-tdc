@@ -22,6 +22,7 @@ async function bootstrap() {
   // ─── Security ──────────────────────────────────────────────────────────────
   app.use(helmet({
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow images to load across origins
     contentSecurityPolicy: process.env.NODE_ENV === 'production',
   }));
   app.use(compression());
@@ -31,7 +32,11 @@ async function bootstrap() {
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
-  app.use('/uploads', express.static(uploadsDir));
+  // Set Cross-Origin-Resource-Policy header so browsers allow cross-origin image loads
+  app.use('/uploads', (_req: any, res: any, next: any) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  }, express.static(uploadsDir));
 
   // ─── CORS ──────────────────────────────────────────────────────────────────
   app.enableCors({
