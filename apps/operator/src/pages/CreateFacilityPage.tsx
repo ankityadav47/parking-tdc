@@ -28,8 +28,8 @@ function StepIndicator({ current }: { current: number }) {
         <React.Fragment key={i}>
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${i < current ? 'bg-blue-600 border-blue-600 text-white'
-                : i === current ? 'border-blue-600 text-blue-600'
-                  : 'border-slate-200 text-slate-400'
+              : i === current ? 'border-blue-600 text-blue-600'
+                : 'border-slate-200 text-slate-400'
               }`}>
               {i < current ? <Check className="w-4 h-4" /> : i + 1}
             </div>
@@ -165,6 +165,7 @@ export default function CreateFacilityPage() {
                 <select className={sel} value={form.type} onChange={e => set('type', e.target.value)}>
                   <option value="garage">Covered Garage</option>
                   <option value="lot">Open Lot</option>
+                  <option value="street">Street Parking</option>
                   <option value="valet">Valet</option>
                 </select>
               </Field>

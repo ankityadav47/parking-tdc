@@ -11,12 +11,12 @@ export class FacilitiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-  ) {}
+  ) { }
 
   async createFacility(operatorId: string, data: {
     name: string;
     description?: string;
-    type: 'garage' | 'lot' | 'valet';
+    type: 'garage' | 'lot' | 'street' | 'valet';
     addressLine1: string;
     addressLine2?: string;
     city: string;
@@ -78,19 +78,19 @@ export class FacilitiesService {
     const now = new Date();
     return this.prisma.facility.findMany({
       where: { operatorId },
-      include: { 
-        amenities: true, 
+      include: {
+        amenities: true,
         photos: { where: { isCover: true }, take: 1 },
-        _count: { 
-          select: { 
-            reservations: { 
-              where: { 
+        _count: {
+          select: {
+            reservations: {
+              where: {
                 status: 'confirmed',
                 startAt: { lte: now },
                 endAt: { gte: now }
-              } 
-            } 
-          } 
+              }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'desc' },

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Req, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Req, UseGuards, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -67,49 +67,58 @@ export class OperatorController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File
   ) {
-    const user = req.user as { id: string };
-    const op = await this.getOperatorProfile(user.id);
-    // Verify ownership
-    await this.facilitiesService.getFacility(id, true); // Throws if not found
+    try {
+      const user = req.user as { id: string };
+      const op = await this.getOperatorProfile(user.id);
+      // Verify ownership
+      await this.facilitiesService.getFacility(id, true); // Throws if not found
 
-    const sharp = require('sharp');
-    const fs = require('fs');
-    const path = require('path');
-
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const filename = `facility-${id}-${Date.now()}.webp`;
-    const filepath = path.join(uploadsDir, filename);
-
-    // Optimize and reduce size with sharp
-    await sharp(file.buffer)
-      .resize(1200, 800, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toFile(filepath);
-
-    // Use request host to ensure correct routing through proxies, fallback to process.env
-    const host = req.get('host');
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const baseUrl = host ? `${protocol}://${host}/api/v1` : (process.env.API_BASE_URL || 'http://localhost:4000/api/v1');
-    const fileUrl = `${baseUrl.replace(/\/$/, '')}/uploads/${filename}`;
-
-    // Count existing photos to determine sortOrder
-    const existingCount = await this.prisma.facilityPhoto.count({ where: { facilityId: id } });
-
-    // Save to DB
-    const photo = await this.prisma.facilityPhoto.create({
-      data: {
-        facilityId: id,
-        url: fileUrl,
-        sortOrder: existingCount,
-        isCover: existingCount === 0, // First photo is cover
+      if (!file) {
+        throw new Error('No file uploaded. Please select an image file.');
       }
-    });
 
-    return { data: photo };
+      const sharp = require('sharp');
+      const fs = require('fs');
+      const path = require('path');
+
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const filename = `facility-${id}-${Date.now()}.webp`;
+      const filepath = path.join(uploadsDir, filename);
+
+      // Optimize and reduce size with sharp
+      await sharp(file.buffer)
+        .resize(1200, 800, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toFile(filepath);
+
+      // Use request host to ensure correct routing through proxies, fallback to process.env
+      const host = req.get('host');
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const baseUrl = host ? `${protocol}://${host}/api/v1` : (process.env.API_BASE_URL || 'http://localhost:4000/api/v1');
+      const fileUrl = `${baseUrl.replace(/\/$/, '')}/uploads/${filename}`;
+
+      // Count existing photos to determine sortOrder
+      const existingCount = await this.prisma.facilityPhoto.count({ where: { facilityId: id } });
+
+      // Save to DB
+      const photo = await this.prisma.facilityPhoto.create({
+        data: {
+          facilityId: id,
+          url: fileUrl,
+          sortOrder: existingCount,
+          isCover: existingCount === 0, // First photo is cover
+        }
+      });
+
+      return { data: photo };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to upload photo';
+      throw new BadRequestException(message);
+    }
   }
 
   @Delete('facilities/:id/photos/:photoId')

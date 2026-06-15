@@ -253,6 +253,7 @@ export default function EditFacilityPage() {
                 <select className={sel} value={type} onChange={e => setType(e.target.value)}>
                   <option value="garage">Covered Garage</option>
                   <option value="lot">Open Lot</option>
+                  <option value="street">Street Parking</option>
                   <option value="valet">Valet</option>
                 </select>
               </Field>
