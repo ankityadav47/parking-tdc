@@ -111,25 +111,6 @@ export class OperatorController {
     return { data: photo };
   }
 
-  @Delete('facilities/:id/photos/:photoId')
-  async deletePhoto(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Param('photoId') photoId: string,
-  ) {
-    const user = req.user as { id: string };
-    const op = await this.getOperatorProfile(user.id);
-    // Verify facility ownership
-    const facility = await this.prisma.facility.findUnique({
-      where: { id },
-      select: { operatorId: true },
-    });
-    if (!facility || facility.operatorId !== op.id) throw new Error('Not authorized');
-    // Delete photo record (file stays on disk — acceptable for now)
-    await this.prisma.facilityPhoto.delete({ where: { id: photoId } });
-    return { data: { deleted: true } };
-  }
-
   @Post('facilities/:id/amenities')
   async updateAmenities(@Req() req: Request, @Param('id') id: string, @Body() body: Record<string, boolean>) {
     const user = req.user as { id: string };
