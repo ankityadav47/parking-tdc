@@ -79,19 +79,58 @@ export class SearchService {
     // Get bookings overlap for each candidate
     const candidateIds = candidates.map((c: any) => c.id);
 
-    const overlapCounts = candidateIds.length > 0
-      ? await this.prisma.$queryRaw<Array<{ facility_id: string; overlapping: bigint }>>`
-          SELECT "facilityId" AS facility_id, count(*) AS overlapping
-          FROM reservations
-          WHERE "facilityId" IN (${Prisma.join(candidateIds)})
-            AND status IN ('pending', 'confirmed')
-            AND tstzrange("startAt", "endAt") && tstzrange(${start}::timestamptz, ${end}::timestamptz)
-          GROUP BY "facilityId"
-        `
+    const overlappingReservations = candidateIds.length > 0
+      ? await this.prisma.reservation.findMany({
+          where: {
+            facilityId: { in: candidateIds },
+            status: { in: ['pending', 'confirmed'] },
+            startAt: { lt: end },
+            endAt: { gt: start }
+          },
+          select: { facilityId: true, startAt: true, endAt: true }
+        })
       : [];
 
     const overlapMap = new Map<string, number>();
-    overlapCounts.forEach((r: any) => overlapMap.set(r.facility_id, Number(r.overlapping)));
+
+    if (overlappingReservations.length > 0) {
+      // Group reservations by facility
+      const resByFacility = new Map<string, Array<{start: number, end: number}>>();
+      for (const res of overlappingReservations) {
+        if (!resByFacility.has(res.facilityId)) {
+          resByFacility.set(res.facilityId, []);
+        }
+        resByFacility.get(res.facilityId)!.push({
+          start: Math.max(start.getTime(), res.startAt.getTime()),
+          end: Math.min(end.getTime(), res.endAt.getTime())
+        });
+      }
+
+      // Calculate max concurrent reservations for each facility
+      for (const [facilityId, reservations] of resByFacility.entries()) {
+        const events: { time: number; type: number }[] = [];
+        for (const r of reservations) {
+          if (r.start < r.end) {
+            events.push({ time: r.start, type: 1 });
+            events.push({ time: r.end, type: -1 });
+          }
+        }
+        
+        // Sort events: chronologically, then process departures (-1) before arrivals (1) to accurately calculate peak
+        events.sort((a, b) => {
+          if (a.time === b.time) return a.type - b.type;
+          return a.time - b.time;
+        });
+
+        let maxOverlap = 0;
+        let currentOverlap = 0;
+        for (const e of events) {
+          currentOverlap += e.type;
+          if (currentOverlap > maxOverlap) maxOverlap = currentOverlap;
+        }
+        overlapMap.set(facilityId, maxOverlap);
+      }
+    }
 
     // Get amenities + photos for candidates
     const amenitiesMap = await this.loadAmenities(candidateIds);

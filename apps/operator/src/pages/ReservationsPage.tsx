@@ -1,7 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, QrCode, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, QrCode, AlertCircle, CheckCircle2, XCircle, Timer } from 'lucide-react';
 import { operatorApi } from '../api/operator';
+
+// ─── Live countdown timer for confirmed bookings ──────────────────────────────
+function CountdownTimer({ startAt, endAt }: { startAt: string, endAt: string }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  const startTime = new Date(startAt).getTime();
+  const endTime = new Date(endAt).getTime();
+
+  if (now > endTime) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+        ✓ Ended
+      </span>
+    );
+  }
+
+  if (now < startTime) {
+    const diff = startTime - now;
+    const totalSec = Math.floor(diff / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const hh = String(h).padStart(2, '0');
+    const mm = String(m).padStart(2, '0');
+    const ss = String(s).padStart(2, '0');
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-mono font-medium px-2 py-0.5 rounded-full border text-blue-600 bg-blue-50 border-blue-200">
+        <Timer className="w-3 h-3" />
+        Starts in {hh}:{mm}:{ss}
+      </span>
+    );
+  }
+
+  // Active timer
+  const diff = endTime - now;
+  const totalSec = Math.floor(diff / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const hh = String(h).padStart(2, '0');
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+
+  const colorClass =
+    diff < 10 * 60 * 1000
+      ? 'text-red-600 bg-red-50 border-red-200'       // < 10 min → red
+      : diff < 60 * 60 * 1000
+      ? 'text-amber-600 bg-amber-50 border-amber-200'  // < 1 hr → amber
+      : 'text-green-700 bg-green-50 border-green-200'; // > 1 hr → green
+
+  return (
+    <span className={`inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${colorClass}`}>
+      <Timer className="w-3 h-3" />
+      {hh}:{mm}:{ss}
+    </span>
+  );
+}
 
 const STATUS_STYLE: Record<string, string> = {
   confirmed: 'bg-green-50 text-green-700',
@@ -152,6 +214,11 @@ export default function ReservationsPage() {
                       {' – '}
                       {r.endAt ? new Date(r.endAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
                     </div>
+                    {r.status === 'confirmed' && r.endAt && r.startAt && (
+                      <div className="mt-1">
+                        <CountdownTimer startAt={r.startAt} endAt={r.endAt} />
+                      </div>
+                    )}
                   </td>
                   <td className="px-5 py-3.5 font-bold text-slate-900">
                     {r.basePriceCents ? formatINR(r.basePriceCents) : '—'}
