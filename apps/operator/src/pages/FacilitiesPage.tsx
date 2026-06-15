@@ -76,16 +76,16 @@ export default function FacilitiesPage() {
 
                 <div className="grid grid-cols-3 gap-3 text-center mb-5">
                   <div className="bg-slate-50 rounded-xl p-2">
-                    <div className="font-black text-slate-900">{f.totalCapacity}</div>
-                    <div className="text-xs text-slate-500">Spots</div>
+                    <div className="font-black text-slate-900">{f.totalCapacity - (f._count?.reservations || 0)}</div>
+                    <div className="text-xs text-slate-500">Available</div>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-2">
-                    <div className="font-black text-slate-900">—</div>
+                    <div className="font-black text-slate-900">{f.avgRating || '—'}</div>
                     <div className="text-xs text-slate-500">Rating</div>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-2">
-                    <div className="font-black text-slate-900">0</div>
-                    <div className="text-xs text-slate-500">Bookings</div>
+                    <div className="font-black text-slate-900">{f._count?.reservations || 0}</div>
+                    <div className="text-xs text-slate-500">Active Now</div>
                   </div>
                 </div>
 

@@ -44,4 +44,14 @@ export const operatorApi = {
     const res = await api.get('/operator/earnings');
     return res.data.data;
   },
+
+  confirmBooking: async (id: string) => {
+    const res = await api.post(`/operator/reservations/${id}/confirm`);
+    return res.data.data;
+  },
+
+  cancelBooking: async (id: string) => {
+    const res = await api.post(`/operator/reservations/${id}/cancel`);
+    return res.data.data;
+  },
 };

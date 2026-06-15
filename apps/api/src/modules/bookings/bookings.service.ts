@@ -354,6 +354,23 @@ export class BookingsService {
     }
   }
 
+  // ─── Background: auto-complete ended reservations ────────────────────────
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async completeEndedReservations() {
+    const result = await this.prisma.reservation.updateMany({
+      where: {
+        status: 'confirmed',
+        endAt: { lt: new Date() },
+      },
+      data: { status: 'completed' },
+    });
+
+    if (result.count > 0) {
+      this.logger.log(`Auto-completed ${result.count} ended reservations`);
+    }
+  }
+
   // ─── Helpers ─────────────────────────────────────────────────────────────
 
   private generateCode(): string {
@@ -446,14 +463,13 @@ export class BookingsService {
     return this.prisma.reservation.findMany({
       where: {
         facility: { operatorId: operatorProfile.id },
-        status: { in: ['pending', 'confirmed'] },
       },
       include: {
         facility: { select: { name: true } },
         driver: { select: { fullName: true, email: true } },
         vehicle: true,
       },
-      orderBy: { startAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

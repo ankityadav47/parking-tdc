@@ -234,7 +234,7 @@ export default function FacilityDetailPage() {
                 <hr className="border-slate-200" />
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-slate-900">Total</span>
-                  <span className="text-xl font-black text-blue-600">₹{total + Math.round(total * 0.18)}</span>
+                  <span className="text-xl font-black text-blue-600">₹{Math.round(total + Math.round(total * 0.18))}</span>
                 </div>
               </div>
 

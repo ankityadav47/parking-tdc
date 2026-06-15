@@ -12,6 +12,17 @@ function getPrice(rateRules: any[]): number {
   return Math.round(rateRules[0].priceCents / 100);
 }
 
+function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // Earth radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
+}
+
 // Keep track of all markers so we can clear them on re-fetch
 const markerRefs: maplibregl.Marker[] = [];
 
@@ -30,6 +41,22 @@ export default function SearchPage() {
   const urlLng = parseFloat(searchParams.get('mlng') || '');
   const urlZoom = parseFloat(searchParams.get('mzoom') || '');
   const urlSelected = searchParams.get('selected') || null;
+  const urlStart = searchParams.get('start');
+  const urlEnd = searchParams.get('end');
+
+  const now = new Date();
+  const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
+  nextHour.setMinutes(0, 0, 0);
+  const endHour = new Date(nextHour.getTime() + 3 * 60 * 60 * 1000);
+
+  const formatDateTimeLocal = (d: Date) => {
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const [startTime, setStartTime] = useState(urlStart ? formatDateTimeLocal(new Date(urlStart)) : formatDateTimeLocal(nextHour));
+  const [endTime, setEndTime] = useState(urlEnd ? formatDateTimeLocal(new Date(urlEnd)) : formatDateTimeLocal(endHour));
 
   const initialCenter: [number, number] = (
     !isNaN(urlLat) && !isNaN(urlLng) ? [urlLng, urlLat] : [78.1828, 26.2183]
@@ -70,8 +97,8 @@ export default function SearchPage() {
   const fetchByCoords = useCallback(async (lat: number, lng: number) => {
     setIsLoading(true);
     try {
-      const start = new Date().toISOString();
-      const end = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      const start = new Date(startTime).toISOString();
+      const end = new Date(endTime).toISOString();
       const res = await fetch(`${API}/search?lat=${lat}&lng=${lng}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&radius=50000`);
       const data = await res.json();
       const results = data.data || [];
@@ -83,15 +110,15 @@ export default function SearchPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [startTime, endTime]);
 
   // ─── Fetch facilities by address string ──────────────────────────
   const fetchByAddress = useCallback(async (addr: string) => {
     if (!addr.trim()) return;
     setIsLoading(true);
     try {
-      const start = new Date().toISOString();
-      const end = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      const start = new Date(startTime).toISOString();
+      const end = new Date(endTime).toISOString();
       const res = await fetch(`${API}/search?address=${encodeURIComponent(addr)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&radius=50000`);
       const data = await res.json();
       const results = data.data || [];
@@ -108,7 +135,7 @@ export default function SearchPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [startTime, endTime]);
 
   // ─── Initialize map ──────────────────────────────────────────────
   useEffect(() => {
@@ -186,7 +213,12 @@ export default function SearchPage() {
   // ─── Initial load: if we have saved map coords in URL, fetch by those; else by address
   useEffect(() => {
     if (initialFetchDone.current) {
-      if (userLocation && !address && isNaN(urlLat)) {
+      // Re-fetch on time change
+      if (!isNaN(urlLat) && !isNaN(urlLng)) {
+        fetchByCoords(urlLat, urlLng);
+      } else if (address) {
+        fetchByAddress(address);
+      } else if (userLocation && !address && isNaN(urlLat)) {
         // Only fetch if we are waiting for user location and finally got it
         map.current?.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: 13 });
         fetchByCoords(userLocation.lat, userLocation.lng);
@@ -206,7 +238,7 @@ export default function SearchPage() {
       map.current?.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: 13 });
       fetchByCoords(userLocation.lat, userLocation.lng);
     }
-  }, [userLocation, address, urlLat, urlLng, fetchByCoords, fetchByAddress]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userLocation, address, urlLat, urlLng, fetchByCoords, fetchByAddress, startTime, endTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Place/update markers on map when facilities change ──────────
   useEffect(() => {
@@ -491,11 +523,35 @@ export default function SearchPage() {
           <div className="flex items-center gap-2">
             <div className="flex flex-col px-3 py-1 border border-slate-300 rounded-lg min-w-[130px] cursor-pointer hover:border-blue-400">
               <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Start time</span>
-              <span className="text-sm font-medium">{new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}, 12:00 PM</span>
+              <input 
+                type="datetime-local" 
+                value={startTime}
+                onChange={(e) => {
+                  setStartTime(e.target.value);
+                  setSearchParams(prev => {
+                    const next = new URLSearchParams(prev);
+                    next.set('start', new Date(e.target.value).toISOString());
+                    return next;
+                  }, { replace: true });
+                }}
+                className="w-full text-sm font-medium text-slate-900 outline-none bg-transparent"
+              />
             </div>
             <div className="flex flex-col px-3 py-1 border border-slate-300 rounded-lg min-w-[130px] cursor-pointer hover:border-blue-400">
               <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">End time</span>
-              <span className="text-sm font-medium">{new Date(Date.now() + 4 * 86400000).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}, 12:00 PM</span>
+              <input 
+                type="datetime-local" 
+                value={endTime}
+                onChange={(e) => {
+                  setEndTime(e.target.value);
+                  setSearchParams(prev => {
+                    const next = new URLSearchParams(prev);
+                    next.set('end', new Date(e.target.value).toISOString());
+                    return next;
+                  }, { replace: true });
+                }}
+                className="w-full text-sm font-medium text-slate-900 outline-none bg-transparent"
+              />
             </div>
           </div>
         </div>
@@ -543,6 +599,12 @@ export default function SearchPage() {
             {facilities.map((res: any) => {
               const price = getPrice(res.rateRules);
               const isSelected = selectedFacility === res.id;
+              
+              // Calculate distance from user's live location if available
+              const dist = userLocation && res.lat && res.lng 
+                ? getDistanceMeters(userLocation.lat, userLocation.lng, res.lat, res.lng)
+                : res.distanceMeters;
+
               return (
                 <div
                   id={`facility-card-${res.id}`}
@@ -577,8 +639,8 @@ export default function SearchPage() {
                             <span>{res.avgRating ? res.avgRating.toFixed(1) : 'New'}</span>
                             <span className="text-slate-400">({res.reviewCount || 0})</span>
                           </div>
-                          {res.distanceMeters && (
-                            <span className="text-xs text-slate-400">· {res.distanceMeters < 1000 ? `${res.distanceMeters}m` : `${(res.distanceMeters / 1000).toFixed(1)}km`} away</span>
+                          {dist != null && (
+                            <span className="text-xs text-slate-400">· {dist < 1000 ? `${dist}m` : `${(dist / 1000).toFixed(1)}km`} away</span>
                           )}
                         </div>
                       </div>

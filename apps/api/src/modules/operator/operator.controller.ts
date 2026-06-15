@@ -154,6 +154,44 @@ export class OperatorController {
     return { data: await this.bookingsService.validatePass(code, op.id) };
   }
 
+  @Post('reservations/:id/confirm')
+  async confirmBooking(@Req() req: Request, @Param('id') id: string) {
+    const user = req.user as { id: string };
+    const op = await this.getOperatorProfile(user.id);
+    // Verify this reservation belongs to operator's facility
+    const reservation = await this.prisma.reservation.findUnique({
+      where: { id },
+      include: { facility: { select: { operatorId: true } } },
+    });
+    if (!reservation) throw new Error('Reservation not found');
+    if (reservation.facility.operatorId !== op.id) throw new Error('Not authorized');
+    if (reservation.status !== 'pending') throw new Error('Only pending bookings can be confirmed');
+    const updated = await this.prisma.reservation.update({
+      where: { id },
+      data: { status: 'confirmed', holdExpiresAt: null },
+    });
+    return { data: updated };
+  }
+
+  @Post('reservations/:id/cancel')
+  async cancelBooking(@Req() req: Request, @Param('id') id: string) {
+    const user = req.user as { id: string };
+    const op = await this.getOperatorProfile(user.id);
+    // Verify this reservation belongs to operator's facility
+    const reservation = await this.prisma.reservation.findUnique({
+      where: { id },
+      include: { facility: { select: { operatorId: true } } },
+    });
+    if (!reservation) throw new Error('Reservation not found');
+    if (reservation.facility.operatorId !== op.id) throw new Error('Not authorized');
+    if (!['pending', 'confirmed'].includes(reservation.status)) throw new Error('Cannot cancel this booking');
+    const updated = await this.prisma.reservation.update({
+      where: { id },
+      data: { status: 'cancelled' },
+    });
+    return { data: updated };
+  }
+
   // ─── Earnings ────────────────────────────────────────────────────────────
 
   @Get('earnings')

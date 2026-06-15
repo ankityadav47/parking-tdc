@@ -83,8 +83,15 @@ export default function CheckoutPage() {
       }
 
       // 2. Create Booking
-      const startObj = new Date(`${date}T${startTime}:00`);
-      const endObj = new Date(`${date}T${endTime}:00`);
+      let startObj = new Date(`${date}T${startTime}:00`);
+      let endObj = new Date(`${date}T${endTime}:00`);
+      
+      // Ensure start time is in the future to prevent 400 Bad Request
+      const now = new Date();
+      if (startObj < now) {
+        startObj = new Date(now.getTime() + 60000); // add 1 minute buffer
+      }
+
       if (endObj <= startObj) {
         endObj.setDate(endObj.getDate() + 1);
       }

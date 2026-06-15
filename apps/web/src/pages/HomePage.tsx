@@ -11,10 +11,19 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
-  // Set default times to tomorrow noon -> 3pm
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateStr = tomorrow.toISOString().split('T')[0];
+  // Set default times
+  const now = new Date();
+  const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
+  nextHour.setMinutes(0, 0, 0);
+  const endHour = new Date(nextHour.getTime() + 3 * 60 * 60 * 1000);
+
+  const formatDateTimeLocal = (d: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const [startTime, setStartTime] = useState(formatDateTimeLocal(nextHour));
+  const [endTime, setEndTime] = useState(formatDateTimeLocal(endHour));
 
   useEffect(() => {
     fetch('https://ghostwhite-badger-995775.hostingersite.com/api/v1/config')
@@ -75,8 +84,8 @@ export default function HomePage() {
     // Default search params
     const searchParams = new URLSearchParams({
       address,
-      start: `${dateStr}T12:00:00Z`,
-      end: `${dateStr}T15:00:00Z`,
+      start: new Date(startTime).toISOString(),
+      end: new Date(endTime).toISOString(),
     });
 
     navigate(`/search?${searchParams.toString()}`);
@@ -97,8 +106,8 @@ export default function HomePage() {
           mlat: latitude.toString(),
           mlng: longitude.toString(),
           liveloc: "true",
-          start: `${dateStr}T12:00:00Z`,
-          end: `${dateStr}T15:00:00Z`,
+          start: new Date(startTime).toISOString(),
+          end: new Date(endTime).toISOString(),
         });
         navigate(`/search?${searchParams.toString()}`);
       },
@@ -183,7 +192,12 @@ export default function HomePage() {
                     </div>
                     <div className="w-full pl-12 pr-4 py-3 bg-white border border-slate-300 rounded-xl flex flex-col justify-center">
                       <span className="text-xs text-slate-500 font-medium">Start Time</span>
-                      <span className="text-sm font-semibold text-slate-900">Tomorrow at 12:00 PM</span>
+                      <input 
+                        type="datetime-local" 
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full text-sm font-semibold text-slate-900 outline-none bg-transparent"
+                      />
                     </div>
                   </div>
                   <div className="relative">
@@ -192,7 +206,12 @@ export default function HomePage() {
                     </div>
                     <div className="w-full pl-12 pr-4 py-3 bg-white border border-slate-300 rounded-xl flex flex-col justify-center">
                       <span className="text-xs text-slate-500 font-medium">End Time</span>
-                      <span className="text-sm font-semibold text-slate-900">Tomorrow at 3:00 PM</span>
+                      <input 
+                        type="datetime-local" 
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full text-sm font-semibold text-slate-900 outline-none bg-transparent"
+                      />
                     </div>
                   </div>
                 </div>

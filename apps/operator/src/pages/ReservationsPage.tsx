@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, QrCode, AlertCircle } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Search, QrCode, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { operatorApi } from '../api/operator';
 
 const STATUS_STYLE: Record<string, string> = {
@@ -17,10 +17,23 @@ function formatINR(cents: number): string {
 export default function ReservationsPage() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const queryClient = useQueryClient();
 
   const { data: reservations, isLoading, error, refetch } = useQuery({
     queryKey: ['operator-reservations'],
     queryFn: operatorApi.getReservations,
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: (id: string) => operatorApi.confirmBooking(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['operator-reservations'] }),
+    onError: (err: any) => alert(err?.response?.data?.message || 'Failed to confirm booking'),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => operatorApi.cancelBooking(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['operator-reservations'] }),
+    onError: (err: any) => alert(err?.response?.data?.message || 'Failed to cancel booking'),
   });
 
   if (isLoading) {
@@ -56,7 +69,7 @@ export default function ReservationsPage() {
     .filter((r: any) => {
       if (!search) return true;
       const driverName = (r.driver?.fullName || '').toLowerCase();
-      const passCode = (r.passCode || '').toLowerCase();
+      const passCode = (r.passCode || r.code || '').toLowerCase();
       const term = search.toLowerCase();
       return driverName.includes(term) || passCode.includes(term);
     });
@@ -105,7 +118,7 @@ export default function ReservationsPage() {
               <th className="px-5 py-3 hidden lg:table-cell">Date & Time</th>
               <th className="px-5 py-3">Amount</th>
               <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3"></th>
+              <th className="px-5 py-3">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -120,7 +133,7 @@ export default function ReservationsPage() {
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3.5">
                     <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                      {r.passCode || r.id.slice(0, 8).toUpperCase()}
+                      {r.code || r.passCode || r.id.slice(0, 8).toUpperCase()}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
@@ -149,9 +162,42 @@ export default function ReservationsPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <button className="text-slate-400 hover:text-blue-600 transition-colors" title="Scan QR">
-                      <QrCode className="w-4 h-4" />
-                    </button>
+                    {r.status === 'pending' ? (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => confirmMutation.mutate(r.id)}
+                          disabled={confirmMutation.isPending}
+                          title="Confirm Booking"
+                          className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Confirm
+                        </button>
+                        <button
+                          onClick={() => cancelMutation.mutate(r.id)}
+                          disabled={cancelMutation.isPending}
+                          title="Cancel Booking"
+                          className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Cancel
+                        </button>
+                      </div>
+                    ) : r.status === 'confirmed' ? (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => cancelMutation.mutate(r.id)}
+                          disabled={cancelMutation.isPending}
+                          title="Cancel Booking"
+                          className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Cancel
+                        </button>
+                        <button className="text-slate-400 hover:text-blue-600 transition-colors" title="Scan QR">
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </td>
                 </tr>
               ))

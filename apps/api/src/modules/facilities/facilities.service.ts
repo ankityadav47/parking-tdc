@@ -75,9 +75,24 @@ export class FacilitiesService {
   }
 
   async getOperatorFacilities(operatorId: string) {
+    const now = new Date();
     return this.prisma.facility.findMany({
       where: { operatorId },
-      include: { amenities: true, photos: { where: { isCover: true }, take: 1 } },
+      include: { 
+        amenities: true, 
+        photos: { where: { isCover: true }, take: 1 },
+        _count: { 
+          select: { 
+            reservations: { 
+              where: { 
+                status: 'confirmed',
+                startAt: { lte: now },
+                endAt: { gte: now }
+              } 
+            } 
+          } 
+        }
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
