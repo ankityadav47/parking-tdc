@@ -79,19 +79,39 @@ export class SearchService {
     // Get bookings overlap for each candidate
     const candidateIds = candidates.map((c: any) => c.id);
 
-    const overlapCounts = candidateIds.length > 0
-      ? await this.prisma.$queryRaw<Array<{ facility_id: string; overlapping: bigint }>>`
-          SELECT "facilityId" AS facility_id, count(*) AS overlapping
-          FROM reservations
-          WHERE "facilityId" IN (${Prisma.join(candidateIds)})
-            AND status IN ('pending', 'confirmed')
-            AND tstzrange("startAt", "endAt") && tstzrange(${start}::timestamptz, ${end}::timestamptz)
-          GROUP BY "facilityId"
-        `
+    const overlappingReservations = candidateIds.length > 0
+      ? await this.prisma.reservation.findMany({
+          where: {
+            facilityId: { in: candidateIds },
+            status: { in: ['pending', 'confirmed'] },
+            startAt: { lt: end },
+            endAt: { gt: start },
+          },
+          select: { facilityId: true, startAt: true, endAt: true }
+        })
       : [];
 
     const overlapMap = new Map<string, number>();
-    overlapCounts.forEach((r: any) => overlapMap.set(r.facility_id, Number(r.overlapping)));
+    for (const id of candidateIds) {
+      const facReservations = overlappingReservations.filter(r => r.facilityId === id);
+      let maxConcurrent = 0;
+      const events: { time: number; type: number }[] = [];
+      for (const r of facReservations) {
+        const s = Math.max(r.startAt.getTime(), start.getTime());
+        const e = Math.min(r.endAt.getTime(), end.getTime());
+        if (s < e) {
+          events.push({ time: s, type: 1 });
+          events.push({ time: e, type: -1 });
+        }
+      }
+      events.sort((a, b) => (a.time === b.time ? a.type - b.type : a.time - b.time));
+      let current = 0;
+      for (const ev of events) {
+        current += ev.type;
+        if (current > maxConcurrent) maxConcurrent = current;
+      }
+      overlapMap.set(id, maxConcurrent);
+    }
 
     // Get amenities + photos for candidates
     const amenitiesMap = await this.loadAmenities(candidateIds);

@@ -14,10 +14,24 @@ export default function FacilityDetailPage() {
   const [error, setError] = useState('');
 
   const getInitialDates = () => {
+    if (location.state?.startTime && location.state?.endTime) {
+      const sDate = new Date(location.state.startTime);
+      const eDate = new Date(location.state.endTime);
+      if (!isNaN(sDate.getTime()) && !isNaN(eDate.getTime())) {
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const d = sDate.getFullYear() + '-' + pad(sDate.getMonth() + 1) + '-' + pad(sDate.getDate());
+        const s = `${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`;
+        const e = `${pad(eDate.getHours())}:${pad(eDate.getMinutes())}`;
+        return { d, s, e };
+      }
+    }
     const now = new Date();
-    const d = now.toISOString().split('T')[0];
-    const s = new Date(now.getTime() + 60*60*1000).toTimeString().slice(0, 5);
-    const e = new Date(now.getTime() + 4*60*60*1000).toTimeString().slice(0, 5);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const d = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+    const startHour = new Date(now.getTime() + 60*60*1000);
+    const endHour = new Date(now.getTime() + 4*60*60*1000);
+    const s = `${pad(startHour.getHours())}:${pad(startHour.getMinutes())}`;
+    const e = `${pad(endHour.getHours())}:${pad(endHour.getMinutes())}`;
     return { d, s, e };
   };
 

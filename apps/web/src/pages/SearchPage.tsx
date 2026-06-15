@@ -661,7 +661,7 @@ export default function SearchPage() {
                   <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
                     <Link
                       to={`/facilities/${res.id}`}
-                      state={{ fromSearch: true }}
+                      state={{ fromSearch: true, startTime, endTime }}
                       className="flex-1 text-center text-blue-600 font-semibold text-xs border border-blue-200 py-2 rounded-lg hover:bg-blue-50 transition-colors"
                       onClick={e => e.stopPropagation()}
                     >
@@ -669,7 +669,7 @@ export default function SearchPage() {
                     </Link>
                     <Link
                       to={`/facilities/${res.id}`}
-                      state={{ fromSearch: true }}
+                      state={{ fromSearch: true, startTime, endTime }}
                       className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs transition-colors"
                       onClick={e => e.stopPropagation()}
                     >
