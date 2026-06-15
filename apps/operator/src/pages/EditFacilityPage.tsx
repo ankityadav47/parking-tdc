@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -42,28 +42,27 @@ export default function EditFacilityPage() {
   });
 
   // Form state
-  const [name, setName]               = useState('');
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType]               = useState('garage');
-  const [totalCapacity, setTotalCap]  = useState('');
-  const [hourlyRate, setHourlyRate]   = useState('');
-  const [dailyRate, setDailyRate]     = useState('');
+  const [type, setType] = useState('garage');
+  const [totalCapacity, setTotalCap] = useState('');
+  const [hourlyRate, setHourlyRate] = useState('');
+  const [dailyRate, setDailyRate] = useState('');
 
   // Amenities
-  const [covered, setCovered]             = useState(false);
-  const [evCharging, setEvCharging]       = useState(false);
+  const [covered, setCovered] = useState(false);
+  const [evCharging, setEvCharging] = useState(false);
   const [adaAccessible, setAdaAccessible] = useState(false);
-  const [valet, setValet]                 = useState(false);
-  const [gated, setGated]                 = useState(false);
+  const [valet, setValet] = useState(false);
+  const [gated, setGated] = useState(false);
 
   const [saved, setSaved] = useState(false);
 
   // Photo state
   const [existingPhotos, setExistingPhotos] = useState<any[]>([]);
-  const [newFiles, setNewFiles]             = useState<File[]>([]);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
-  const [uploading, setUploading]           = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Pre-fill once facility loads
   useEffect(() => {
@@ -75,9 +74,9 @@ export default function EditFacilityPage() {
 
     const rules: any[] = facility.rateRules || [];
     const hourly = rules.find((r: any) => r.rateType === 'hourly');
-    const daily  = rules.find((r: any) => r.rateType === 'daily');
+    const daily = rules.find((r: any) => r.rateType === 'daily');
     if (hourly) setHourlyRate(String(Math.round(hourly.priceCents / 100)));
-    if (daily)  setDailyRate(String(Math.round(daily.priceCents / 100)));
+    if (daily) setDailyRate(String(Math.round(daily.priceCents / 100)));
 
     const am = facility.amenities || {};
     setCovered(!!am.covered);
@@ -104,7 +103,7 @@ export default function EditFacilityPage() {
       // 3. Update rate rules if hourly rate provided
       const rules: any[] = facility?.rateRules || [];
       const hourlyRule = rules.find((r: any) => r.rateType === 'hourly');
-      const dailyRule  = rules.find((r: any) => r.rateType === 'daily');
+      const dailyRule = rules.find((r: any) => r.rateType === 'daily');
 
       if (hourlyRate) {
         const priceCents = parseInt(hourlyRate, 10) * 100;
@@ -186,11 +185,11 @@ export default function EditFacilityPage() {
   }
 
   const amenityList: { key: string; label: string; value: boolean; setter: (v: boolean) => void }[] = [
-    { key: 'covered',       label: 'Covered',       value: covered,       setter: setCovered },
-    { key: 'evCharging',    label: 'EV Charging',   value: evCharging,    setter: setEvCharging },
-    { key: 'adaAccessible', label: 'ADA Accessible',value: adaAccessible, setter: setAdaAccessible },
-    { key: 'valet',         label: 'Valet',         value: valet,         setter: setValet },
-    { key: 'gated',         label: 'Gated',         value: gated,         setter: setGated },
+    { key: 'covered', label: 'Covered', value: covered, setter: setCovered },
+    { key: 'evCharging', label: 'EV Charging', value: evCharging, setter: setEvCharging },
+    { key: 'adaAccessible', label: 'ADA Accessible', value: adaAccessible, setter: setAdaAccessible },
+    { key: 'valet', label: 'Valet', value: valet, setter: setValet },
+    { key: 'gated', label: 'Gated', value: gated, setter: setGated },
   ];
 
   return (
@@ -254,7 +253,6 @@ export default function EditFacilityPage() {
                 <select className={sel} value={type} onChange={e => setType(e.target.value)}>
                   <option value="garage">Covered Garage</option>
                   <option value="lot">Open Lot</option>
-                  <option value="street">Street Parking</option>
                   <option value="valet">Valet</option>
                 </select>
               </Field>
@@ -274,11 +272,11 @@ export default function EditFacilityPage() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             {[
               ['Street Address', facility.addressLine1],
-              ['City',           facility.city],
-              ['State',          facility.state],
-              ['Postal Code',    facility.postalCode],
-              ['Country',        facility.country],
-              ['Coordinates',    facility.lat && facility.lng ? `${Number(facility.lat).toFixed(5)}, ${Number(facility.lng).toFixed(5)}` : '—'],
+              ['City', facility.city],
+              ['State', facility.state],
+              ['Postal Code', facility.postalCode],
+              ['Country', facility.country],
+              ['Coordinates', facility.lat && facility.lng ? `${Number(facility.lat).toFixed(5)}, ${Number(facility.lng).toFixed(5)}` : '—'],
             ].map(([label, val]) => (
               <div key={label}>
                 <p className="text-xs text-slate-500 font-medium mb-1">{label}</p>
@@ -368,14 +366,14 @@ export default function EditFacilityPage() {
             </div>
           )}
 
-          {/* Upload controls */}
-          <div className="flex items-center gap-3">
+          {/* Upload controls — same dropzone as CreateFacilityPage */}
+          <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer relative">
             <input
-              ref={fileInputRef}
+              id="facility-photo-upload"
               type="file"
               multiple
               accept="image/jpeg,image/png,image/webp"
-              className="hidden"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               onChange={e => {
                 if (e.target.files) {
                   setNewFiles(prev => [...prev, ...Array.from(e.target.files!)]);
@@ -383,26 +381,30 @@ export default function EditFacilityPage() {
                 }
               }}
             />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium py-2.5 px-4 rounded-xl text-sm transition-colors"
-            >
-              <Camera className="w-4 h-4" /> Choose Photos
-            </button>
-            {newFiles.length > 0 && (
-              <button
-                onClick={handleUploadPhotos}
-                disabled={uploading}
-                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors"
-              >
-                {uploading
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
-                  : <><Upload className="w-4 h-4" /> Upload {newFiles.length} photo{newFiles.length > 1 ? 's' : ''}</>
-                }
-              </button>
-            )}
+            <div className="flex flex-col items-center gap-3 pointer-events-none">
+              <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                <Camera className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Click or drag images here</p>
+                <p className="text-xs text-slate-500 mt-1">JPEG, PNG, WEBP (Max 5MB each)</p>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-slate-400 mt-2">JPEG, PNG, WEBP (Max 5MB each). First photo becomes the cover.</p>
+
+          {newFiles.length > 0 && (
+            <button
+              onClick={handleUploadPhotos}
+              disabled={uploading}
+              className="mt-3 flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold py-2.5 px-5 rounded-xl text-sm transition-colors"
+            >
+              {uploading
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
+                : <><Upload className="w-4 h-4" /> Upload {newFiles.length} photo{newFiles.length > 1 ? 's' : ''}</>
+              }
+            </button>
+          )}
+          <p className="text-xs text-slate-400 mt-1">First uploaded photo becomes the cover.</p>
         </div>
       </div>
 
@@ -415,14 +417,12 @@ export default function EditFacilityPage() {
             {amenityList.map(({ key, label, value, setter }) => (
               <label
                 key={key}
-                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
-                }`}
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
               >
                 <input type="checkbox" className="sr-only" checked={value} onChange={e => setter(e.target.checked)} />
-                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
-                  value ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
-                }`}>
+                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${value ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                  }`}>
                   {value && <Check className="w-3 h-3 text-white" />}
                 </div>
                 <span className="text-sm font-medium text-slate-900">{label}</span>

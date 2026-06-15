@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Req, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FacilitiesService } from '../facilities/facilities.service';
@@ -19,7 +20,7 @@ export class OperatorController {
     private readonly bookingsService: BookingsService,
     private readonly paymentsService: PaymentsService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   // ─── Facilities ──────────────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ export class OperatorController {
   }
 
   @Post('facilities/:id/photos')
-  @UseInterceptors(require('@nestjs/platform-express').FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file'))
   async uploadPhoto(
     @Req() req: Request,
     @Param('id') id: string,
