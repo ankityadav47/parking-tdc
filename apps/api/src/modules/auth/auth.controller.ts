@@ -80,7 +80,7 @@ export class AuthController {
     const user = req.user as { id: string };
     const refreshToken = req.cookies?.['refresh_token'];
     await this.authService.logout(user.id, refreshToken);
-    res.clearCookie('refresh_token');
+    res.clearCookie('refresh_token', { path: '/api' });
     return { data: { message: 'Logged out' } };
   }
 

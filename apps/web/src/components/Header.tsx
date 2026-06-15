@@ -1,9 +1,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { authApi } from '../api/auth';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function Header() {
   const { isAuthenticated, user, logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      logout();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
@@ -29,7 +38,7 @@ export default function Header() {
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
               <span className="text-gray-900">{user?.fullName}</span>
-              <button onClick={() => logout()} className="text-gray-600 hover:text-gray-900">
+              <button onClick={handleLogout} className="text-gray-600 hover:text-gray-900">
                 Log Out
               </button>
             </div>
