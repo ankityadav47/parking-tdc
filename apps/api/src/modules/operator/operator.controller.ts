@@ -118,11 +118,11 @@ export class OperatorController {
     return { data: await this.facilitiesService.updateAmenities(id, op.id, body) };
   }
 
-  @Delete('photos/:id')
-  async deletePhoto(@Req() req: Request, @Param('id') id: string) {
+  @Delete('facilities/:facilityId/photos/:photoId')
+  async deletePhoto(@Req() req: Request, @Param('photoId') photoId: string) {
     const user = req.user as { id: string };
     const op = await this.getOperatorProfile(user.id);
-    return { data: await this.facilitiesService.deletePhoto(id, op.id) };
+    return { data: await this.facilitiesService.deletePhoto(photoId, op.id) };
   }
 
   @Post('facilities/:id/rate-rules')

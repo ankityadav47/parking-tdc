@@ -122,7 +122,7 @@ export default function EditFacilityPage() {
 
       // 4. Delete removed photos
       for (const photoId of deletedPhotoIds) {
-        await operatorApi.deletePhoto(photoId);
+        await operatorApi.deletePhoto(id!, photoId);
       }
 
       // 5. Upload new photos
