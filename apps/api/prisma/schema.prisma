@@ -28,7 +28,6 @@ enum Role {
 enum FacilityType {
   garage
   lot
-  street
   valet
 }
 

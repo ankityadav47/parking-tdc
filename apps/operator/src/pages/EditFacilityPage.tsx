@@ -42,27 +42,27 @@ export default function EditFacilityPage() {
   });
 
   // Form state
-  const [name, setName] = useState('');
+  const [name, setName]               = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState('garage');
-  const [totalCapacity, setTotalCap] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
-  const [dailyRate, setDailyRate] = useState('');
+  const [type, setType]               = useState('garage');
+  const [totalCapacity, setTotalCap]  = useState('');
+  const [hourlyRate, setHourlyRate]   = useState('');
+  const [dailyRate, setDailyRate]     = useState('');
 
   // Amenities
-  const [covered, setCovered] = useState(false);
-  const [evCharging, setEvCharging] = useState(false);
+  const [covered, setCovered]             = useState(false);
+  const [evCharging, setEvCharging]       = useState(false);
   const [adaAccessible, setAdaAccessible] = useState(false);
-  const [valet, setValet] = useState(false);
-  const [gated, setGated] = useState(false);
+  const [valet, setValet]                 = useState(false);
+  const [gated, setGated]                 = useState(false);
 
   const [saved, setSaved] = useState(false);
 
   // Photo state
   const [existingPhotos, setExistingPhotos] = useState<any[]>([]);
-  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newFiles, setNewFiles]             = useState<File[]>([]);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading]           = useState(false);
 
   // Pre-fill once facility loads
   useEffect(() => {
@@ -74,9 +74,9 @@ export default function EditFacilityPage() {
 
     const rules: any[] = facility.rateRules || [];
     const hourly = rules.find((r: any) => r.rateType === 'hourly');
-    const daily = rules.find((r: any) => r.rateType === 'daily');
+    const daily  = rules.find((r: any) => r.rateType === 'daily');
     if (hourly) setHourlyRate(String(Math.round(hourly.priceCents / 100)));
-    if (daily) setDailyRate(String(Math.round(daily.priceCents / 100)));
+    if (daily)  setDailyRate(String(Math.round(daily.priceCents / 100)));
 
     const am = facility.amenities || {};
     setCovered(!!am.covered);
@@ -103,7 +103,7 @@ export default function EditFacilityPage() {
       // 3. Update rate rules if hourly rate provided
       const rules: any[] = facility?.rateRules || [];
       const hourlyRule = rules.find((r: any) => r.rateType === 'hourly');
-      const dailyRule = rules.find((r: any) => r.rateType === 'daily');
+      const dailyRule  = rules.find((r: any) => r.rateType === 'daily');
 
       if (hourlyRate) {
         const priceCents = parseInt(hourlyRate, 10) * 100;
@@ -185,11 +185,11 @@ export default function EditFacilityPage() {
   }
 
   const amenityList: { key: string; label: string; value: boolean; setter: (v: boolean) => void }[] = [
-    { key: 'covered', label: 'Covered', value: covered, setter: setCovered },
-    { key: 'evCharging', label: 'EV Charging', value: evCharging, setter: setEvCharging },
-    { key: 'adaAccessible', label: 'ADA Accessible', value: adaAccessible, setter: setAdaAccessible },
-    { key: 'valet', label: 'Valet', value: valet, setter: setValet },
-    { key: 'gated', label: 'Gated', value: gated, setter: setGated },
+    { key: 'covered',       label: 'Covered',       value: covered,       setter: setCovered },
+    { key: 'evCharging',    label: 'EV Charging',   value: evCharging,    setter: setEvCharging },
+    { key: 'adaAccessible', label: 'ADA Accessible',value: adaAccessible, setter: setAdaAccessible },
+    { key: 'valet',         label: 'Valet',         value: valet,         setter: setValet },
+    { key: 'gated',         label: 'Gated',         value: gated,         setter: setGated },
   ];
 
   return (
@@ -273,11 +273,11 @@ export default function EditFacilityPage() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             {[
               ['Street Address', facility.addressLine1],
-              ['City', facility.city],
-              ['State', facility.state],
-              ['Postal Code', facility.postalCode],
-              ['Country', facility.country],
-              ['Coordinates', facility.lat && facility.lng ? `${Number(facility.lat).toFixed(5)}, ${Number(facility.lng).toFixed(5)}` : '—'],
+              ['City',           facility.city],
+              ['State',          facility.state],
+              ['Postal Code',    facility.postalCode],
+              ['Country',        facility.country],
+              ['Coordinates',    facility.lat && facility.lng ? `${Number(facility.lat).toFixed(5)}, ${Number(facility.lng).toFixed(5)}` : '—'],
             ].map(([label, val]) => (
               <div key={label}>
                 <p className="text-xs text-slate-500 font-medium mb-1">{label}</p>
@@ -418,12 +418,14 @@ export default function EditFacilityPage() {
             {amenityList.map(({ key, label, value, setter }) => (
               <label
                 key={key}
-                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
-                  }`}
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                }`}
               >
                 <input type="checkbox" className="sr-only" checked={value} onChange={e => setter(e.target.checked)} />
-                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${value ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
-                  }`}>
+                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
+                  value ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                }`}>
                   {value && <Check className="w-3 h-3 text-white" />}
                 </div>
                 <span className="text-sm font-medium text-slate-900">{label}</span>

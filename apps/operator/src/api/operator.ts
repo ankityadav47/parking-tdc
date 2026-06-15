@@ -44,7 +44,9 @@ export const operatorApi = {
   uploadPhoto: async (id: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await api.post(`/operator/facilities/${id}/photos`, formData);
+    const res = await api.post(`/operator/facilities/${id}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return res.data.data;
   },
 

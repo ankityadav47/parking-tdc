@@ -27,10 +27,11 @@ function StepIndicator({ current }: { current: number }) {
       {STEPS.map((label, i) => (
         <React.Fragment key={i}>
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${i < current ? 'bg-blue-600 border-blue-600 text-white'
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
+              i < current ? 'bg-blue-600 border-blue-600 text-white'
               : i === current ? 'border-blue-600 text-blue-600'
-                : 'border-slate-200 text-slate-400'
-              }`}>
+              : 'border-slate-200 text-slate-400'
+            }`}>
               {i < current ? <Check className="w-4 h-4" /> : i + 1}
             </div>
             <span className={`text-sm font-medium hidden sm:block ${i === current ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
@@ -91,7 +92,7 @@ export default function CreateFacilityPage() {
         lat: location!.lat,
         lng: location!.lng,
       });
-
+      
       const facilityId = facilityRes.id;
 
       // 2. Add pricing (rate rules)
@@ -254,7 +255,7 @@ export default function CreateFacilityPage() {
               <Camera className="w-5 h-5" />
               <h2 className="font-bold text-lg text-slate-900">Upload Photos</h2>
             </div>
-
+            
             <p className="text-sm text-slate-500 mb-4">
               Upload clear photos of the entrance, parking spots, and surrounding area. High-quality photos increase bookings.
             </p>
@@ -286,10 +287,10 @@ export default function CreateFacilityPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
                 {photos.map((photo, i) => (
                   <div key={i} className="relative rounded-xl overflow-hidden aspect-video border border-slate-200 group">
-                    <img
-                      src={URL.createObjectURL(photo)}
-                      alt={`Preview ${i}`}
-                      className="w-full h-full object-cover"
+                    <img 
+                      src={URL.createObjectURL(photo)} 
+                      alt={`Preview ${i}`} 
+                      className="w-full h-full object-cover" 
                     />
                     <button
                       onClick={() => setPhotos(photos.filter((_, index) => index !== i))}
