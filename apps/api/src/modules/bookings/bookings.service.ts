@@ -265,7 +265,7 @@ export class BookingsService {
         ...(status && { status: status as ReservationStatus }),
       },
       include: {
-        facility: { select: { name: true, city: true, state: true, addressLine1: true } },
+        facility: { select: { name: true, city: true, state: true, addressLine1: true, lat: true, lng: true } },
         vehicle: { select: { licensePlate: true, state: true } },
         payment: { select: { status: true } },
         pass: true,
