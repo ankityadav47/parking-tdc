@@ -90,12 +90,18 @@ export default function FacilitiesPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button className="flex-1 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium py-2 px-3 rounded-xl text-sm transition-colors">
+                  <Link
+                    to={`/facilities/${f.id}/edit`}
+                    className="flex-1 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium py-2 px-3 rounded-xl text-sm transition-colors"
+                  >
                     <Edit2 className="w-3.5 h-3.5" /> Edit
-                  </button>
-                  <button className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-xl text-sm transition-colors">
+                  </Link>
+                  <Link
+                    to={`/facilities/${f.id}`}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-xl text-sm transition-colors"
+                  >
                     <Eye className="w-3.5 h-3.5" /> View
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>

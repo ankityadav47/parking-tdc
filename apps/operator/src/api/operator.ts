@@ -6,8 +6,18 @@ export const operatorApi = {
     return res.data.data;
   },
 
+  getFacility: async (id: string) => {
+    const res = await api.get(`/operator/facilities/${id}`);
+    return res.data.data;
+  },
+
   createFacility: async (data: any) => {
     const res = await api.post('/operator/facilities', data);
+    return res.data.data;
+  },
+
+  updateFacility: async (id: string, data: any) => {
+    const res = await api.patch(`/operator/facilities/${id}`, data);
     return res.data.data;
   },
 
@@ -18,6 +28,11 @@ export const operatorApi = {
 
   addRateRule: async (id: string, data: any) => {
     const res = await api.post(`/operator/facilities/${id}/rate-rules`, data);
+    return res.data.data;
+  },
+
+  updateRateRule: async (ruleId: string, data: any) => {
+    const res = await api.patch(`/operator/rate-rules/${ruleId}`, data);
     return res.data.data;
   },
 

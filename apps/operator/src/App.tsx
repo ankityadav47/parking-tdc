@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import OperatorLayout from './components/OperatorLayout';
 import DashboardPage from './pages/DashboardPage';
 import FacilitiesPage from './pages/FacilitiesPage';
+import FacilityViewPage from './pages/FacilityViewPage';
+import EditFacilityPage from './pages/EditFacilityPage';
 import CreateFacilityPage from './pages/CreateFacilityPage';
 import ReservationsPage from './pages/ReservationsPage';
 import EarningsPage from './pages/EarningsPage';
@@ -41,6 +43,8 @@ export default function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="facilities" element={<FacilitiesPage />} />
         <Route path="facilities/new" element={<CreateFacilityPage />} />
+        <Route path="facilities/:id" element={<FacilityViewPage />} />
+        <Route path="facilities/:id/edit" element={<EditFacilityPage />} />
         <Route path="reservations" element={<ReservationsPage />} />
         <Route path="earnings" element={<EarningsPage />} />
       </Route>
