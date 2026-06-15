@@ -104,40 +104,15 @@ export class BookingsService {
         SELECT id FROM facilities WHERE id = ${facilityId} FOR UPDATE
       `;
 
-      // Calculate max concurrent overlapping active/pending reservations
-      const overlappingRes = await tx.reservation.findMany({
-        where: {
-          facilityId,
-          status: { in: ['pending', 'confirmed'] },
-          startAt: { lt: end },
-          endAt: { gt: start },
-        },
-        select: { startAt: true, endAt: true },
-      });
-
-      let overlapping = 0;
-      if (overlappingRes.length > 0) {
-        const events: { time: number; type: number }[] = [];
-        for (const r of overlappingRes) {
-          const s = Math.max(start.getTime(), r.startAt.getTime());
-          const e = Math.min(end.getTime(), r.endAt.getTime());
-          if (s < e) {
-            events.push({ time: s, type: 1 });
-            events.push({ time: e, type: -1 });
-          }
-        }
-        
-        events.sort((a, b) => {
-          if (a.time === b.time) return a.type - b.type;
-          return a.time - b.time;
-        });
-
-        let currentOverlap = 0;
-        for (const e of events) {
-          currentOverlap += e.type;
-          if (currentOverlap > overlapping) overlapping = currentOverlap;
-        }
-      }
+      // Count overlapping active/pending reservations
+      const result = await tx.$queryRaw<[{ count: bigint }]>`
+        SELECT count(*) AS count
+        FROM reservations
+        WHERE "facilityId" = ${facilityId}
+          AND status IN ('pending', 'confirmed')
+          AND tstzrange("startAt", "endAt") && tstzrange(${start}::timestamptz, ${end}::timestamptz)
+      `;
+      const overlapping = Number(result[0].count);
 
       // Check availability_blocks capacity overrides
       const blockResult = await tx.$queryRaw<[{ min_capacity: number | null }]>`

@@ -180,22 +180,10 @@ export class PaymentsService {
         const payment = event.payload.payment?.entity;
         if (!payment) break;
 
-        const dbPayment = await this.prisma.payment.findUnique({
+        await this.prisma.payment.updateMany({
           where: { razorpayOrderId: payment.order_id },
+          data: { status: 'failed' },
         });
-
-        if (dbPayment) {
-          await this.prisma.$transaction([
-            this.prisma.payment.update({
-              where: { id: dbPayment.id },
-              data: { status: 'failed' },
-            }),
-            this.prisma.reservation.updateMany({
-              where: { id: dbPayment.reservationId, status: 'pending' },
-              data: { status: 'cancelled' },
-            }),
-          ]);
-        }
 
         this.eventEmitter.emit('payment.failed', { orderId: payment.order_id });
         break;
