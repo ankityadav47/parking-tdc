@@ -12,11 +12,18 @@ if (savedToken) {
   apiClient.setToken(savedToken);
 }
 
-// When refresh fails (session expired), redirect to login
+const protectedDriverPaths = ['/dashboard', '/vehicles', '/checkout', '/reservations'];
+
+// When refresh fails, redirect only from protected driver pages.
 apiClient.setOnAuthFailure(() => {
-    localStorage.removeItem('driver_access_token');
-    localStorage.removeItem('driver_token');
-    if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-    }
+  localStorage.removeItem('driver_access_token');
+  localStorage.removeItem('driver_token');
+
+  const isProtectedPage = protectedDriverPaths.some((path) =>
+    window.location.pathname === path || window.location.pathname.startsWith(`${path}/`)
+  );
+
+  if (isProtectedPage && window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
 });

@@ -6,6 +6,7 @@ export const authApi = {
     const response = await api.post('/auth/login', data);
     const { user, accessToken } = response.data.data;
     apiClient.setToken(accessToken);
+    localStorage.setItem('driver_access_token', accessToken);
     return { user, accessToken };
   },
 
@@ -13,12 +14,15 @@ export const authApi = {
     const response = await api.post('/auth/register', data);
     const { user, accessToken } = response.data.data;
     apiClient.setToken(accessToken);
+    localStorage.setItem('driver_access_token', accessToken);
     return { user, accessToken };
   },
 
   logout: async () => {
     await api.post('/auth/logout');
     apiClient.setToken(null);
+    localStorage.removeItem('driver_access_token');
+    localStorage.removeItem('driver_token');
   },
 
   getMe: async () => {
