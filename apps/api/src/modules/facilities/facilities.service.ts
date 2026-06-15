@@ -38,7 +38,7 @@ export class FacilitiesService {
         country: rest.country || 'US',
         operatorId,
         amenities: { create: {} }, // default all false
-      },
+      } as any,
       include: { amenities: true },
     });
 
