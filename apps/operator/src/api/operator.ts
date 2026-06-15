@@ -50,6 +50,11 @@ export const operatorApi = {
     return res.data.data;
   },
 
+  deletePhoto: async (photoId: string) => {
+    const res = await api.delete(`/operator/photos/${photoId}`);
+    return res.data.data;
+  },
+
   getReservations: async () => {
     const res = await api.get('/operator/reservations');
     return res.data.data;

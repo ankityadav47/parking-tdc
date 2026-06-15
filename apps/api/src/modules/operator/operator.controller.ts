@@ -19,7 +19,7 @@ export class OperatorController {
     private readonly bookingsService: BookingsService,
     private readonly paymentsService: PaymentsService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   // ─── Facilities ──────────────────────────────────────────────────────────
 
@@ -116,6 +116,13 @@ export class OperatorController {
     const user = req.user as { id: string };
     const op = await this.getOperatorProfile(user.id);
     return { data: await this.facilitiesService.updateAmenities(id, op.id, body) };
+  }
+
+  @Delete('photos/:id')
+  async deletePhoto(@Req() req: Request, @Param('id') id: string) {
+    const user = req.user as { id: string };
+    const op = await this.getOperatorProfile(user.id);
+    return { data: await this.facilitiesService.deletePhoto(id, op.id) };
   }
 
   @Post('facilities/:id/rate-rules')

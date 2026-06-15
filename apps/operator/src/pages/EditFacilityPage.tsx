@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Save, Building2, MapPin, DollarSign, Settings,
+  ArrowLeft, Save, Building2, MapPin, DollarSign, Settings, Camera, Image as ImageIcon, Trash2,
   Check, XCircle, Loader2,
 } from 'lucide-react';
 import { operatorApi } from '../api/operator';
@@ -42,19 +42,22 @@ export default function EditFacilityPage() {
   });
 
   // Form state
-  const [name, setName]               = useState('');
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType]               = useState('garage');
-  const [totalCapacity, setTotalCap]  = useState('');
-  const [hourlyRate, setHourlyRate]   = useState('');
-  const [dailyRate, setDailyRate]     = useState('');
+  const [type, setType] = useState('garage');
+  const [totalCapacity, setTotalCap] = useState('');
+  const [hourlyRate, setHourlyRate] = useState('');
+  const [dailyRate, setDailyRate] = useState('');
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<any[]>([]);
+  const [deletedPhotoIds, setDeletedPhotoIds] = useState<string[]>([]);
 
   // Amenities
-  const [covered, setCovered]             = useState(false);
-  const [evCharging, setEvCharging]       = useState(false);
+  const [covered, setCovered] = useState(false);
+  const [evCharging, setEvCharging] = useState(false);
   const [adaAccessible, setAdaAccessible] = useState(false);
-  const [valet, setValet]                 = useState(false);
-  const [gated, setGated]                 = useState(false);
+  const [valet, setValet] = useState(false);
+  const [gated, setGated] = useState(false);
 
   const [saved, setSaved] = useState(false);
 
@@ -68,9 +71,9 @@ export default function EditFacilityPage() {
 
     const rules: any[] = facility.rateRules || [];
     const hourly = rules.find((r: any) => r.rateType === 'hourly');
-    const daily  = rules.find((r: any) => r.rateType === 'daily');
+    const daily = rules.find((r: any) => r.rateType === 'daily');
     if (hourly) setHourlyRate(String(Math.round(hourly.priceCents / 100)));
-    if (daily)  setDailyRate(String(Math.round(daily.priceCents / 100)));
+    if (daily) setDailyRate(String(Math.round(daily.priceCents / 100)));
 
     const am = facility.amenities || {};
     setCovered(!!am.covered);
@@ -78,6 +81,8 @@ export default function EditFacilityPage() {
     setAdaAccessible(!!am.adaAccessible);
     setValet(!!am.valet);
     setGated(!!am.gated);
+    setExistingPhotos(facility.photos || []);
+    setDeletedPhotoIds([]);
   }, [facility]);
 
   const mutation = useMutation({
@@ -96,7 +101,7 @@ export default function EditFacilityPage() {
       // 3. Update rate rules if hourly rate provided
       const rules: any[] = facility?.rateRules || [];
       const hourlyRule = rules.find((r: any) => r.rateType === 'hourly');
-      const dailyRule  = rules.find((r: any) => r.rateType === 'daily');
+      const dailyRule = rules.find((r: any) => r.rateType === 'daily');
 
       if (hourlyRate) {
         const priceCents = parseInt(hourlyRate, 10) * 100;
@@ -114,10 +119,22 @@ export default function EditFacilityPage() {
           await operatorApi.addRateRule(id!, { rateType: 'daily', priceCents, priority: 2, minMinutes: 300 });
         }
       }
+
+      // 4. Delete removed photos
+      for (const photoId of deletedPhotoIds) {
+        await operatorApi.deletePhoto(photoId);
+      }
+
+      // 5. Upload new photos
+      for (const photo of photos) {
+        await operatorApi.uploadPhoto(id!, photo);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['operator-facility', id] });
       queryClient.invalidateQueries({ queryKey: ['operator-facilities'] });
+      setPhotos([]);
+      setDeletedPhotoIds([]);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     },
@@ -144,12 +161,17 @@ export default function EditFacilityPage() {
   }
 
   const amenityList: { key: string; label: string; value: boolean; setter: (v: boolean) => void }[] = [
-    { key: 'covered',       label: 'Covered',       value: covered,       setter: setCovered },
-    { key: 'evCharging',    label: 'EV Charging',   value: evCharging,    setter: setEvCharging },
-    { key: 'adaAccessible', label: 'ADA Accessible',value: adaAccessible, setter: setAdaAccessible },
-    { key: 'valet',         label: 'Valet',         value: valet,         setter: setValet },
-    { key: 'gated',         label: 'Gated',         value: gated,         setter: setGated },
+    { key: 'covered', label: 'Covered', value: covered, setter: setCovered },
+    { key: 'evCharging', label: 'EV Charging', value: evCharging, setter: setEvCharging },
+    { key: 'adaAccessible', label: 'ADA Accessible', value: adaAccessible, setter: setAdaAccessible },
+    { key: 'valet', label: 'Valet', value: valet, setter: setValet },
+    { key: 'gated', label: 'Gated', value: gated, setter: setGated },
   ];
+
+  const handleRemoveExistingPhoto = (photoId: string) => {
+    setExistingPhotos(prev => prev.filter(photo => photo.id !== photoId));
+    setDeletedPhotoIds(prev => prev.includes(photoId) ? prev : [...prev, photoId]);
+  };
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -224,6 +246,92 @@ export default function EditFacilityPage() {
         </div>
       </div>
 
+      {/* Photos */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-amber-500 to-orange-600" />
+        <div className="p-6">
+          <SectionHeader icon={<Camera className="w-4 h-4" />} title="Photos" />
+          <p className="text-sm text-slate-500 mb-4">
+            Manage existing photos or upload additional photos for this facility.
+          </p>
+
+          {existingPhotos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              {existingPhotos.map((photo: any, i: number) => (
+                <div key={photo.id || i} className="relative rounded-xl overflow-hidden aspect-video border border-slate-200 group">
+                  <img
+                    src={photo.url}
+                    alt={`Facility photo ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveExistingPhoto(photo.id)}
+                    className="absolute top-2 right-2 p-1.5 bg-white/90 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  {photo.isCover && (
+                    <span className="absolute bottom-2 left-2 px-2 py-1 bg-slate-900/80 text-white text-[10px] font-bold rounded uppercase tracking-wide">
+                      Cover
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer relative">
+            <input
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/webp"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              onChange={(e) => {
+                if (e.target.files) {
+                  setPhotos(prev => [...prev, ...Array.from(e.target.files!)]);
+                }
+              }}
+            />
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                <ImageIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Click or drag images here</p>
+                <p className="text-xs text-slate-500 mt-1">JPEG, PNG, WEBP (Max 5MB each)</p>
+              </div>
+            </div>
+          </div>
+
+          {photos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+              {photos.map((photo, i) => (
+                <div key={i} className="relative rounded-xl overflow-hidden aspect-video border border-slate-200 group">
+                  <img
+                    src={URL.createObjectURL(photo)}
+                    alt={`Preview ${i}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPhotos(photos.filter((_, index) => index !== i))}
+                    className="absolute top-2 right-2 p-1.5 bg-white/90 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  {i === 0 && (
+                    <span className="absolute bottom-2 left-2 px-2 py-1 bg-slate-900/80 text-white text-[10px] font-bold rounded uppercase tracking-wide">
+                      Cover
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Location (read-only — show current, direct to re-submit for location changes) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="h-2 bg-gradient-to-r from-slate-400 to-slate-500" />
@@ -232,11 +340,11 @@ export default function EditFacilityPage() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             {[
               ['Street Address', facility.addressLine1],
-              ['City',           facility.city],
-              ['State',          facility.state],
-              ['Postal Code',    facility.postalCode],
-              ['Country',        facility.country],
-              ['Coordinates',    facility.lat && facility.lng ? `${Number(facility.lat).toFixed(5)}, ${Number(facility.lng).toFixed(5)}` : '—'],
+              ['City', facility.city],
+              ['State', facility.state],
+              ['Postal Code', facility.postalCode],
+              ['Country', facility.country],
+              ['Coordinates', facility.lat && facility.lng ? `${Number(facility.lat).toFixed(5)}, ${Number(facility.lng).toFixed(5)}` : '—'],
             ].map(([label, val]) => (
               <div key={label}>
                 <p className="text-xs text-slate-500 font-medium mb-1">{label}</p>
@@ -281,14 +389,12 @@ export default function EditFacilityPage() {
             {amenityList.map(({ key, label, value, setter }) => (
               <label
                 key={key}
-                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
-                }`}
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
               >
                 <input type="checkbox" className="sr-only" checked={value} onChange={e => setter(e.target.checked)} />
-                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
-                  value ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
-                }`}>
+                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${value ? 'bg-blue-600 border-blue-600' : 'border-slate-300'
+                  }`}>
                   {value && <Check className="w-3 h-3 text-white" />}
                 </div>
                 <span className="text-sm font-medium text-slate-900">{label}</span>

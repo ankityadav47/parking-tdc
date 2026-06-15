@@ -11,7 +11,7 @@ export class FacilitiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-  ) {}
+  ) { }
 
   async createFacility(operatorId: string, data: {
     name: string;
@@ -78,19 +78,19 @@ export class FacilitiesService {
     const now = new Date();
     return this.prisma.facility.findMany({
       where: { operatorId },
-      include: { 
-        amenities: true, 
+      include: {
+        amenities: true,
         photos: { where: { isCover: true }, take: 1 },
-        _count: { 
-          select: { 
-            reservations: { 
-              where: { 
+        _count: {
+          select: {
+            reservations: {
+              where: {
                 status: 'confirmed',
                 startAt: { lte: now },
                 endAt: { gte: now }
-              } 
-            } 
-          } 
+              }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -151,6 +151,14 @@ export class FacilitiesService {
     await this.assertOwnership(rule.facilityId, operatorId);
     await this.redis.del(`facility:${rule.facilityId}`);
     return this.prisma.rateRule.delete({ where: { id } });
+  }
+
+  async deletePhoto(id: string, operatorId: string) {
+    const photo = await this.prisma.facilityPhoto.findUnique({ where: { id } });
+    if (!photo) throw new NotFoundException('Photo not found');
+    await this.assertOwnership(photo.facilityId, operatorId);
+    await this.redis.del(`facility:${photo.facilityId}`);
+    return this.prisma.facilityPhoto.delete({ where: { id } });
   }
 
   async addAvailabilityBlock(facilityId: string, operatorId: string, data: {
