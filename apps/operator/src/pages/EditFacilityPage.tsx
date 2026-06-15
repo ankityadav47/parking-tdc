@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Save, Building2, MapPin, DollarSign, Settings,
-  Check, XCircle, Loader2,
+  Check, XCircle, Loader2, Camera, Trash2, Upload, Star,
 } from 'lucide-react';
 import { operatorApi } from '../api/operator';
 
@@ -58,6 +58,13 @@ export default function EditFacilityPage() {
 
   const [saved, setSaved] = useState(false);
 
+  // Photo state
+  const [existingPhotos, setExistingPhotos] = useState<any[]>([]);
+  const [newFiles, setNewFiles]             = useState<File[]>([]);
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
+  const [uploading, setUploading]           = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Pre-fill once facility loads
   useEffect(() => {
     if (!facility) return;
@@ -78,6 +85,7 @@ export default function EditFacilityPage() {
     setAdaAccessible(!!am.adaAccessible);
     setValet(!!am.valet);
     setGated(!!am.gated);
+    setExistingPhotos(facility.photos || []);
   }, [facility]);
 
   const mutation = useMutation({
@@ -122,6 +130,40 @@ export default function EditFacilityPage() {
       setTimeout(() => setSaved(false), 3000);
     },
   });
+
+  // Upload new photos individually
+  const handleUploadPhotos = async () => {
+    if (!newFiles.length) return;
+    setUploading(true);
+    try {
+      const uploaded: any[] = [];
+      for (const file of newFiles) {
+        const photo = await operatorApi.uploadPhoto(id!, file);
+        uploaded.push(photo);
+      }
+      setExistingPhotos(prev => [...prev, ...uploaded]);
+      setNewFiles([]);
+      queryClient.invalidateQueries({ queryKey: ['operator-facility', id] });
+    } catch (err) {
+      alert('Failed to upload some photos. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Delete an existing photo
+  const handleDeletePhoto = async (photoId: string) => {
+    setDeletingPhotoId(photoId);
+    try {
+      await operatorApi.deletePhoto(id!, photoId);
+      setExistingPhotos(prev => prev.filter(p => p.id !== photoId));
+      queryClient.invalidateQueries({ queryKey: ['operator-facility', id] });
+    } catch (err) {
+      alert('Failed to delete photo.');
+    } finally {
+      setDeletingPhotoId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -269,6 +311,98 @@ export default function EditFacilityPage() {
               </div>
             </Field>
           </div>
+        </div>
+      </div>
+
+      {/* Photos Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-orange-500 to-pink-500" />
+        <div className="p-6">
+          <SectionHeader icon={<Camera className="w-4 h-4" />} title="Photos" />
+
+          {/* Existing photos */}
+          {existingPhotos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+              {existingPhotos.map((photo: any, i: number) => (
+                <div key={photo.id} className="relative rounded-xl overflow-hidden aspect-video border border-slate-200 group">
+                  <img src={photo.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                  {photo.isCover && (
+                    <span className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 bg-slate-900/80 text-white text-[10px] font-bold rounded uppercase tracking-wide">
+                      <Star className="w-2.5 h-2.5" /> Cover
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handleDeletePhoto(photo.id)}
+                    disabled={deletingPhotoId === photo.id}
+                    className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-50 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm disabled:opacity-50"
+                    title="Delete photo"
+                  >
+                    {deletingPhotoId === photo.id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Trash2 className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {existingPhotos.length === 0 && newFiles.length === 0 && (
+            <p className="text-sm text-slate-400 mb-4">No photos uploaded yet.</p>
+          )}
+
+          {/* New files preview */}
+          {newFiles.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+              {newFiles.map((file, i) => (
+                <div key={i} className="relative rounded-xl overflow-hidden aspect-video border-2 border-dashed border-blue-300 group">
+                  <img src={URL.createObjectURL(file)} alt={`New ${i}`} className="w-full h-full object-cover" />
+                  <span className="absolute top-2 left-2 px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded uppercase tracking-wide">New</span>
+                  <button
+                    onClick={() => setNewFiles(prev => prev.filter((_, idx) => idx !== i))}
+                    className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-50 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Upload controls */}
+          <div className="flex items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={e => {
+                if (e.target.files) {
+                  setNewFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                  e.target.value = '';
+                }
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium py-2.5 px-4 rounded-xl text-sm transition-colors"
+            >
+              <Camera className="w-4 h-4" /> Choose Photos
+            </button>
+            {newFiles.length > 0 && (
+              <button
+                onClick={handleUploadPhotos}
+                disabled={uploading}
+                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors"
+              >
+                {uploading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
+                  : <><Upload className="w-4 h-4" /> Upload {newFiles.length} photo{newFiles.length > 1 ? 's' : ''}</>
+                }
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mt-2">JPEG, PNG, WEBP (Max 5MB each). First photo becomes the cover.</p>
         </div>
       </div>
 
