@@ -27,8 +27,8 @@ export default function Header() {
         </div>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
-          <a href="#" className="hover:text-blue-600">About</a>
-          <a href="#" className="hover:text-blue-600">Contact Sales</a>
+          <Link to="/about" className="hover:text-blue-600">About</Link>
+          <Link to="/contact-sales" className="hover:text-blue-600">Contact Sales</Link>
           <a href="https://operatorparking.thedigitalcaptain.com/" target="_blank" rel="noopener noreferrer" className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition-colors font-bold">
             For Business
           </a>
@@ -37,7 +37,9 @@ export default function Header() {
 
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
-              <span className="text-gray-900">{user?.fullName}</span>
+              <Link to="/dashboard" className="text-gray-900 hover:text-blue-600 transition-colors">
+                {user?.fullName}
+              </Link>
               <button onClick={handleLogout} className="text-gray-600 hover:text-gray-900">
                 Log Out
               </button>

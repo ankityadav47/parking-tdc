@@ -48,45 +48,6 @@ type DriverBooking = {
   endAt?: string;
 };
 
-const MOCK_UPCOMING: DriverBooking[] = [
-  {
-    id: 'RES-001',
-    code: 'PS-MOCK01',
-    facilityName: 'Downtown Central Garage',
-    address: '123 Main St, New York, NY',
-    city: 'New York',
-    state: 'NY',
-    date: 'Jun 15, 2026',
-    time: '10:00 AM - 2:00 PM',
-    duration: '4 hrs',
-    price: '$24.00',
-    status: 'confirmed',
-    vehicle: 'NY ABC-1234',
-    paymentStatus: 'succeeded',
-  },
-  {
-    id: 'RES-002',
-    code: 'PS-MOCK02',
-    facilityName: 'Harbor Valet Parking',
-    address: '45 Harbor Blvd, New York, NY',
-    city: 'New York',
-    state: 'NY',
-    date: 'Jun 20, 2026',
-    time: '6:00 PM - 11:00 PM',
-    duration: '5 hrs',
-    price: '$45.00',
-    status: 'pending',
-    vehicle: 'NY ABC-1234',
-    paymentStatus: 'pending',
-  },
-];
-
-const MOCK_HISTORY: DriverBooking[] = [
-  { id: 'RES-099', code: 'PS-MOCK99', facilityName: 'Airport Long-Term Lot B', address: 'Terminal 4, JFK Airport, NY', city: 'New York', state: 'NY', date: 'Jun 10, 2026', time: '8:00 AM - 8:00 PM', duration: '12 hrs', price: '$108.30', status: 'completed', vehicle: 'NY ABC-1234', paymentStatus: 'succeeded', rating: 4 },
-  { id: 'RES-098', code: 'PS-MOCK98', facilityName: 'City Center Garage', address: '88 Center Ave, New York, NY', city: 'New York', state: 'NY', date: 'May 29, 2026', time: '1:00 PM - 4:00 PM', duration: '3 hrs', price: '$18.00', status: 'completed', vehicle: 'NY ABC-1234', paymentStatus: 'succeeded', rating: 5 },
-  { id: 'RES-097', code: 'PS-MOCK97', facilityName: 'Riverside Open Lot', address: '14 Riverside Dr, New York, NY', city: 'New York', state: 'NY', date: 'May 14, 2026', time: '9:30 AM - 12:30 PM', duration: '3 hrs', price: '$12.00', status: 'cancelled', vehicle: 'NY ABC-1234', paymentStatus: 'refunded', rating: null },
-];
-
 const STATUS_STYLES: Record<string, string> = {
   confirmed: 'bg-green-50 text-green-700 border-green-200',
   pending: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -102,8 +63,6 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancel',
   canceled: 'Cancel',
 };
-
-const MOCK_ALL_BOOKINGS = [...MOCK_UPCOMING, ...MOCK_HISTORY];
 
 function formatDate(value?: string) {
   if (!value) return 'N/A';
@@ -178,7 +137,7 @@ export default function DriverDashboard() {
     retry: false,
   });
 
-  const allBookings = apiBookings.length > 0 ? apiBookings : MOCK_ALL_BOOKINGS;
+  const allBookings = apiBookings;
   const upcomingBookings = allBookings.filter((booking) => ['confirmed', 'pending'].includes(booking.status));
   const historyBookings = allBookings.filter((booking) => ['completed', 'cancelled', 'canceled'].includes(booking.status));
   const statusCounts = useMemo(() => allBookings.reduce<Record<string, number>>((counts, booking) => {
@@ -494,6 +453,13 @@ export default function DriverDashboard() {
                 {bookingsLoading && <span className="text-xs font-semibold text-blue-600">Loading real bookings...</span>}
               </div>
               <div className="divide-y divide-slate-100">
+                {allBookings.length === 0 && (
+                  <div className="text-center py-16 text-slate-400">
+                    <Car className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                    <p className="font-semibold">No bookings found</p>
+                    <Link to="/search" className="text-blue-600 text-sm hover:underline mt-1 inline-block">Find parking now →</Link>
+                  </div>
+                )}
                 {allBookings.map((res) => (
                   <div key={res.id} className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex gap-4">

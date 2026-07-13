@@ -35,7 +35,7 @@ export class SearchService {
     private readonly redis: RedisService,
     private readonly configService: ConfigService,
     private readonly facilitiesService: FacilitiesService,
-  ) {}
+  ) { }
 
   async search(options: SearchOptions) {
     let { lat, lng } = options;
@@ -81,14 +81,14 @@ export class SearchService {
 
     const overlappingReservations = candidateIds.length > 0
       ? await this.prisma.reservation.findMany({
-          where: {
-            facilityId: { in: candidateIds },
-            status: { in: ['pending', 'confirmed'] },
-            startAt: { lt: end },
-            endAt: { gt: start },
-          },
-          select: { facilityId: true, startAt: true, endAt: true }
-        })
+        where: {
+          facilityId: { in: candidateIds },
+          status: { in: ['pending', 'confirmed'] },
+          startAt: { lt: end },
+          endAt: { gt: start },
+        },
+        select: { facilityId: true, startAt: true, endAt: true }
+      })
       : [];
 
     const overlapMap = new Map<string, number>();

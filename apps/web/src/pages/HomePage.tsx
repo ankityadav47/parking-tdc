@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import { Search, MapPin, Calendar, Clock, CheckCircle, CarFront, Plane, Building2, Navigation } from 'lucide-react';
+import { Search, MapPin, Calendar, Clock, CheckCircle, CarFront, Plane, Building2, Navigation, Lock } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -137,7 +137,14 @@ export default function HomePage() {
             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-2 overflow-hidden">
               <div className="flex bg-slate-100 rounded-xl p-1 mb-4">
                 <button className="flex-1 bg-white text-slate-900 font-semibold py-2 px-4 rounded-lg shadow-sm text-sm">Hourly</button>
-                <button className="flex-1 text-slate-500 font-medium py-2 px-4 rounded-lg hover:text-slate-700 text-sm">Monthly</button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/monthly')}
+                  className="flex-1 text-slate-500 font-medium py-2 px-4 rounded-lg hover:text-slate-700 text-sm inline-flex items-center justify-center gap-1.5"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  Monthly
+                </button>
               </div>
 
               <form onSubmit={handleSearch} className="space-y-3">
@@ -192,8 +199,8 @@ export default function HomePage() {
                     </div>
                     <div className="w-full pl-12 pr-4 py-3 bg-white border border-slate-300 rounded-xl flex flex-col justify-center">
                       <span className="text-xs text-slate-500 font-medium">Start Time</span>
-                      <input 
-                        type="datetime-local" 
+                      <input
+                        type="datetime-local"
                         value={startTime}
                         onChange={(e) => setStartTime(e.target.value)}
                         className="w-full text-sm font-semibold text-slate-900 outline-none bg-transparent"
@@ -206,8 +213,8 @@ export default function HomePage() {
                     </div>
                     <div className="w-full pl-12 pr-4 py-3 bg-white border border-slate-300 rounded-xl flex flex-col justify-center">
                       <span className="text-xs text-slate-500 font-medium">End Time</span>
-                      <input 
-                        type="datetime-local" 
+                      <input
+                        type="datetime-local"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}
                         className="w-full text-sm font-semibold text-slate-900 outline-none bg-transparent"
@@ -293,13 +300,13 @@ export default function HomePage() {
               Enjoy the game or concert without stressing about finding a parking spot. Book in advance and secure a spot just steps from the stadium or arena.
             </p>
             <ul className="space-y-3 font-medium text-blue-600">
-              <li><a href="#" className="hover:underline">Madison Square Garden Parking</a></li>
-              <li><a href="#" className="hover:underline">Yankee Stadium Parking</a></li>
-              <li><a href="#" className="hover:underline">Wrigley Field Parking</a></li>
+              <li><Link to="/search?address=Madison%20Square%20Garden" className="hover:underline">Madison Square Garden Parking</Link></li>
+              <li><Link to="/search?address=Yankee%20Stadium" className="hover:underline">Yankee Stadium Parking</Link></li>
+              <li><Link to="/search?address=Wrigley%20Field" className="hover:underline">Wrigley Field Parking</Link></li>
             </ul>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md mt-4">
+            <Link to="/venues" className="inline-flex bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md mt-4">
               View All Venues
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -313,13 +320,13 @@ export default function HomePage() {
               Save on airport parking with convenient lots, complimentary shuttles, and valet services. Start your trip off right with stress-free parking.
             </p>
             <ul className="space-y-3 font-medium text-blue-600">
-              <li><a href="#" className="hover:underline">JFK Airport Parking</a></li>
-              <li><a href="#" className="hover:underline">LAX Airport Parking</a></li>
-              <li><a href="#" className="hover:underline">O'Hare Airport Parking</a></li>
+              <li><Link to="/search?address=JFK%20Airport" className="hover:underline">JFK Airport Parking</Link></li>
+              <li><Link to="/search?address=LAX%20Airport" className="hover:underline">LAX Airport Parking</Link></li>
+              <li><Link to="/search?address=O%27Hare%20Airport" className="hover:underline">O'Hare Airport Parking</Link></li>
             </ul>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md mt-4">
+            <Link to="/airports" className="inline-flex bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md mt-4">
               View All Airports
-            </button>
+            </Link>
           </div>
           <div className="rounded-2xl overflow-hidden shadow-xl h-80">
             <img src="/assets/airport_parking.png" alt="Airport terminal" className="w-full h-full object-cover" />
