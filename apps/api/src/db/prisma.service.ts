@@ -1,41 +1,12 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      console.error('FATAL ERROR: DATABASE_URL is undefined during Prisma initialization!');
-      throw new Error('DATABASE_URL is not defined in the environment.');
-    }
-    
-    const config: any = { 
-      connectionString,
-      connectionTimeoutMillis: 5000,
-      query_timeout: 10000,
-      idleTimeoutMillis: 30000,
-    };
-    
-    if (connectionString && (connectionString.includes('sslmode=require') || connectionString.includes('ssl=true'))) {
-      config.ssl = { rejectUnauthorized: false };
-    }
-
-    const pool = new Pool(config);
-    
-    // Prevent unhandled error crashes from the pg pool
-    pool.on('error', (err) => {
-      console.error('Unexpected error on idle client', err);
-    });
-
-    const adapter = new PrismaPg(pool);
-
     super({
-      adapter,
       log: process.env.NODE_ENV === 'development'
         ? [{ emit: 'event', level: 'query' }, 'error', 'warn']
         : ['error'],
@@ -44,19 +15,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // Removed await this.$connect() so that the NestJS app boots instantly.
-    // Hostinger (Passenger) kills apps that take > 3 seconds to call listen().
-    this.logger.log('Prisma will connect lazily. Testing connection in background...');
-    
-    // Trigger a simple query in the background to test the connection
-    // without blocking the server startup
-    this.$queryRaw`SELECT 1`
-      .then(() => {
-        this.logger.log('✅ Background database connection successful!');
-      })
-      .catch((err) => {
-        this.logger.error('❌ Failed to connect to database in the background:', err);
-      });
+    await this.$connect();
+    this.logger.log('Database connected');
   }
 
   async onModuleDestroy() {
