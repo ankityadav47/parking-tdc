@@ -9,6 +9,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      console.error('FATAL ERROR: DATABASE_URL is undefined during Prisma initialization!');
+      throw new Error('DATABASE_URL is not defined in the environment.');
+    }
+    
     const config: any = { connectionString };
     
     if (connectionString && (connectionString.includes('sslmode=require') || connectionString.includes('ssl=true'))) {
@@ -16,6 +21,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
 
     const pool = new Pool(config);
+    
+    // Prevent unhandled error crashes from the pg pool
+    pool.on('error', (err) => {
+      console.error('Unexpected error on idle client', err);
+    });
+
     const adapter = new PrismaPg(pool);
 
     super({
@@ -30,8 +41,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async onModuleInit() {
     // Removed await this.$connect() so that the NestJS app boots instantly.
     // Hostinger (Passenger) kills apps that take > 3 seconds to call listen().
-    // Prisma will connect lazily on the first database query.
-    this.logger.log('Prisma will connect lazily on the first query');
+    this.logger.log('Prisma will connect lazily. Testing connection in background...');
+    
+    // Trigger a simple query in the background to test the connection
+    // without blocking the server startup
+    this.$queryRaw`SELECT 1`
+      .then(() => {
+        this.logger.log('✅ Background database connection successful!');
+      })
+      .catch((err) => {
+        this.logger.error('❌ Failed to connect to database in the background:', err);
+      });
   }
 
   async onModuleDestroy() {
