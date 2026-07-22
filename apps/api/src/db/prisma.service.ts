@@ -6,15 +6,11 @@ import { Pool } from 'pg';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-  private static pgPool: Pool;
+  private pgPool: Pool;
 
   constructor() {
-    // Strip Prisma-only URL params that native pg driver doesn't understand
     const rawUrl = process.env.DATABASE_URL!;
     const url = new URL(rawUrl);
-    ['pgbouncer', 'connection_limit', 'pool_timeout', 'schema'].forEach(p =>
-      url.searchParams.delete(p),
-    );
 
     // Hostinger blocks port 6543 (Supabase PgBouncer transaction mode).
     // Auto-switch to port 5432 (session mode, same pooler host) — standard
@@ -23,46 +19,53 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       url.port = '5432';
     }
 
-    // @prisma/adapter-pg v6: PrismaPg takes a pg.Pool instance
-    if (!PrismaService.pgPool) {
-      PrismaService.pgPool = new Pool({
-        connectionString: url.toString(),
-        connectionTimeoutMillis: 8000,
-        idleTimeoutMillis: 30000,
-        max: 5,
-        // Required for Supabase: pg defaults to verifying SSL cert hostname,
-        // which fails for pooler endpoints (cert is for supabase.co, not
-        // pooler.supabase.com). This makes TLS work without cert pinning.
-        ssl: { rejectUnauthorized: false },
-      });
-      // Log pool errors & connection events for debugging
-      PrismaService.pgPool.on('error', (err) =>
-        new Logger('PgPool').error('pg pool error: ' + err.message),
-      );
-    }
-    const adapter = new PrismaPg(PrismaService.pgPool);
+    // Instance property instead of static, so if NestJS re-instantiates,
+    // we don't accidentally reuse a closed pool.
+    const pool = new Pool({
+      connectionString: url.toString(),
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 5,
+      ssl: { rejectUnauthorized: false },
+    });
+
+    pool.on('error', (err) => {
+      new Logger('PgPool').error('pg pool error: ' + err.message);
+    });
+    
+    const adapter = new PrismaPg(pool);
 
     super({
       adapter,
-      log: process.env.NODE_ENV === 'development'
-        ? [{ emit: 'event', level: 'query' }, 'error', 'warn']
-        : ['error'],
+      log: ['error', 'warn'],
       errorFormat: 'minimal',
     });
+    
+    this.pgPool = pool;
   }
 
   async onModuleInit() {
-    // Non-blocking: connect in background so app.listen() is not delayed.
-    // Hostinger kills startup if listen() isn't called within 3 seconds.
+    this.logger.log('PrismaService initializing...');
+    // Connect pool explicitly to test if it hangs before Prisma even tries
+    try {
+      const client = await this.pgPool.connect();
+      client.release();
+      this.logger.log('pg.Pool connected successfully!');
+    } catch (err: any) {
+      this.logger.error('pg.Pool failed to connect!', err);
+    }
+
     this.$connect()
-      .then(() => this.logger.log('Database connected'))
-      .catch((err) => this.logger.error('Database connection failed', err));
+      .then(() => this.logger.log('Prisma Database connected via adapter'))
+      .catch((err) => this.logger.error('Prisma Database connection failed', err));
   }
 
   async onModuleDestroy() {
+    this.logger.log('Disconnecting Prisma...');
     await this.$disconnect();
-    await PrismaService.pgPool?.end();
-    this.logger.log('Database disconnected');
+    this.logger.log('Ending pg.Pool...');
+    await this.pgPool.end();
+    this.logger.log('Database fully disconnected');
   }
 
   /**
