@@ -27,8 +27,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    await this.$connect();
-    this.logger.log('Database connected');
+    // Non-blocking: connect in background so app.listen() is not delayed.
+    // Hostinger kills startup if listen() isn't called within 3 seconds.
+    this.$connect()
+      .then(() => this.logger.log('Database connected'))
+      .catch((err) => this.logger.error('Database connection failed', err));
   }
 
   async onModuleDestroy() {
