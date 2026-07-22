@@ -1,36 +1,53 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
+  public pgPool: Pool;
 
   constructor() {
-    let url = process.env.DATABASE_URL || '';
-    if (url.includes(':6543') && url.includes('pooler.supabase.com')) {
-      url = url.replace(':6543', ':5432');
+    let urlString = process.env.DATABASE_URL || '';
+    const url = new URL(urlString);
+    if (url.port === '6543' && url.hostname.includes('pooler.supabase.com')) {
+      url.port = '5432';
     }
 
+    const pool = new Pool({
+      connectionString: url.toString(),
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 5,
+      ssl: { rejectUnauthorized: false },
+    });
+
+    pool.on('error', (err) => {
+      new Logger('PgPool').error('pg pool error: ' + err.message);
+    });
+    
+    const adapter = new PrismaPg(pool);
+
     super({
-      datasources: {
-        db: {
-          url,
-        },
-      },
+      adapter,
       log: ['error', 'warn'],
       errorFormat: 'minimal',
     });
+    
+    this.pgPool = pool;
   }
 
   async onModuleInit() {
     this.logger.log('PrismaService initializing...');
-    await this.$connect();
-    this.logger.log('Prisma Database connected successfully!');
+    // We intentionally do not call this.$connect() because we want Prisma to lazy connect
+    // on the first query. Explicit $connect() sometimes hangs with the adapter.
   }
 
   async onModuleDestroy() {
     this.logger.log('PrismaService disconnecting...');
     await this.$disconnect();
+    await this.pgPool.end();
   }
 
   /**
