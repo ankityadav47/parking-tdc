@@ -1,68 +1,36 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-  private pgPool: Pool;
 
   constructor() {
-    const rawUrl = process.env.DATABASE_URL!;
-    const url = new URL(rawUrl);
-
-    // Hostinger blocks port 6543 (Supabase PgBouncer transaction mode).
-    // Auto-switch to port 5432 (session mode, same pooler host) — standard
-    // PostgreSQL port that is not blocked by Hostinger's firewall.
-    if (url.port === '6543' && url.hostname.includes('pooler.supabase.com')) {
-      url.port = '5432';
+    let url = process.env.DATABASE_URL || '';
+    if (url.includes(':6543') && url.includes('pooler.supabase.com')) {
+      url = url.replace(':6543', ':5432');
     }
 
-    // Instance property instead of static, so if NestJS re-instantiates,
-    // we don't accidentally reuse a closed pool.
-    const pool = new Pool({
-      connectionString: url.toString(),
-      connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 30000,
-      max: 5,
-      ssl: { rejectUnauthorized: false },
-    });
-
-    pool.on('error', (err) => {
-      new Logger('PgPool').error('pg pool error: ' + err.message);
-    });
-    
-    const adapter = new PrismaPg(pool);
-
     super({
-      adapter,
+      datasources: {
+        db: {
+          url,
+        },
+      },
       log: ['error', 'warn'],
       errorFormat: 'minimal',
     });
-    
-    this.pgPool = pool;
   }
 
   async onModuleInit() {
     this.logger.log('PrismaService initializing...');
-    try {
-      const client = await this.pgPool.connect();
-      client.release();
-      this.logger.log('pg.Pool connected successfully!');
-    } catch (err: any) {
-      this.logger.error('pg.Pool failed to connect!', err);
-    }
-    // Removed explicit this.$connect() to avoid potential deadlocks with adapter-pg.
-    // Prisma will automatically connect on the first query.
+    await this.$connect();
+    this.logger.log('Prisma Database connected successfully!');
   }
 
   async onModuleDestroy() {
-    this.logger.log('Disconnecting Prisma...');
+    this.logger.log('PrismaService disconnecting...');
     await this.$disconnect();
-    this.logger.log('Ending pg.Pool...');
-    await this.pgPool.end();
-    this.logger.log('Database fully disconnected');
   }
 
   /**
