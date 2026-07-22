@@ -9,7 +9,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     const connectionString = process.env.DATABASE_URL;
-    const pool = new Pool({ connectionString });
+    const config: any = { connectionString };
+    
+    if (connectionString && (connectionString.includes('sslmode=require') || connectionString.includes('ssl=true'))) {
+      config.ssl = { rejectUnauthorized: false };
+    }
+
+    const pool = new Pool(config);
     const adapter = new PrismaPg(pool);
 
     super({
@@ -22,8 +28,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    await this.$connect();
-    this.logger.log('Database connected');
+    // Removed await this.$connect() so that the NestJS app boots instantly.
+    // Hostinger (Passenger) kills apps that take > 3 seconds to call listen().
+    // Prisma will connect lazily on the first database query.
+    this.logger.log('Prisma will connect lazily on the first query');
   }
 
   async onModuleDestroy() {
