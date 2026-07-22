@@ -27,9 +27,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (!PrismaService.pgPool) {
       PrismaService.pgPool = new Pool({
         connectionString: url.toString(),
-        connectionTimeoutMillis: 8000,  // fail fast if port blocked
+        connectionTimeoutMillis: 8000,
         idleTimeoutMillis: 30000,
         max: 5,
+        // Required for Supabase: pg defaults to verifying SSL cert hostname,
+        // which fails for pooler endpoints (cert is for supabase.co, not
+        // pooler.supabase.com). This makes TLS work without cert pinning.
+        ssl: { rejectUnauthorized: false },
       });
       // Log pool errors & connection events for debugging
       PrismaService.pgPool.on('error', (err) =>
