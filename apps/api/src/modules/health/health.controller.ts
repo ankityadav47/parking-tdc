@@ -2,6 +2,7 @@ import { Controller, Get, Patch, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PrismaService } from '../../db/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { Pool } from 'pg';
 
 @ApiTags('health')
 @Controller()
@@ -89,6 +90,48 @@ export class HealthController {
       supabase_host: host,
       database_url_port: originalPort,
       connectivity: { p5432, p6543 },
+    };
+  }
+
+  @Get('dbtest')
+  @ApiOperation({ summary: 'Raw pg.Pool connection test to find exact error' })
+  async dbtest() {
+    const rawUrl = process.env.DATABASE_URL ?? '';
+    const results: Record<string, string> = {};
+
+    const testPool = async (label: string, port: string, ssl: boolean) => {
+      try {
+        const u = new URL(rawUrl);
+        u.port = port;
+        const config: any = {
+          connectionString: u.toString(),
+          connectionTimeoutMillis: 5000,
+        };
+        if (ssl) {
+          config.ssl = { rejectUnauthorized: false };
+        }
+        
+        const pool = new Pool(config);
+        const start = Date.now();
+        const client = await pool.connect();
+        const res = await client.query('SELECT 1 as val');
+        client.release();
+        await pool.end();
+        results[label] = `✅ SUCCESS in ${Date.now() - start}ms (val=${res.rows[0]?.val})`;
+      } catch (err: any) {
+        results[label] = `❌ ERROR: ${err.message} (code: ${err.code})`;
+      }
+    };
+
+    await testPool('port_5432_ssl_true', '5432', true);
+    await testPool('port_6543_ssl_true', '6543', true);
+    await testPool('port_5432_ssl_false', '5432', false);
+    await testPool('port_6543_ssl_false', '6543', false);
+
+    return {
+      timestamp: new Date().toISOString(),
+      raw_url_port: new URL(rawUrl).port,
+      results,
     };
   }
 
