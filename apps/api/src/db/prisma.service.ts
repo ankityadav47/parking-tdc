@@ -1,26 +1,21 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-  private static pgPool: Pool;
 
   constructor() {
-    // Strip Prisma-only URL params before passing to native pg driver
+    // Strip Prisma-only URL params that native pg driver doesn't understand
     const rawUrl = process.env.DATABASE_URL!;
     const url = new URL(rawUrl);
     ['pgbouncer', 'connection_limit', 'pool_timeout', 'schema'].forEach(p =>
       url.searchParams.delete(p),
     );
 
-    if (!PrismaService.pgPool) {
-      PrismaService.pgPool = new Pool({ connectionString: url.toString(), max: 5 });
-    }
-
-    const adapter = new PrismaPg(PrismaService.pgPool);
+    // Prisma 6.7+ API: PrismaPg is a factory, takes config directly (not a pg.Pool)
+    const adapter = new PrismaPg({ connectionString: url.toString() });
 
     super({
       adapter,
@@ -38,7 +33,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy() {
     await this.$disconnect();
-    await PrismaService.pgPool?.end();
     this.logger.log('Database disconnected');
   }
 
