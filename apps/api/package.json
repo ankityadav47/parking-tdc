@@ -4,6 +4,7 @@
   "private": true,
   "description": "ParkSpot API — NestJS backend",
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main",
