@@ -14,7 +14,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       throw new Error('DATABASE_URL is not defined in the environment.');
     }
     
-    const config: any = { connectionString };
+    const config: any = { 
+      connectionString,
+      connectionTimeoutMillis: 5000,
+      query_timeout: 10000,
+      idleTimeoutMillis: 30000,
+    };
     
     if (connectionString && (connectionString.includes('sslmode=require') || connectionString.includes('ssl=true'))) {
       config.ssl = { rejectUnauthorized: false };
