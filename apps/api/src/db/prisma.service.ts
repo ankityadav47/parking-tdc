@@ -14,6 +14,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       url.searchParams.delete(p),
     );
 
+    // Hostinger blocks port 6543 (Supabase PgBouncer transaction mode).
+    // Auto-switch to port 5432 (session mode, same pooler host) — standard
+    // PostgreSQL port that is not blocked by Hostinger's firewall.
+    if (url.port === '6543' && url.hostname.includes('pooler.supabase.com')) {
+      url.port = '5432';
+    }
+
     // Prisma 6.7+ API: PrismaPg is a factory, takes config directly (not a pg.Pool)
     const adapter = new PrismaPg({ connectionString: url.toString() });
 
