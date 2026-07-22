@@ -11,6 +11,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { createLogger } from './config/logger';
 
+process.env.TOKIO_WORKER_THREADS = '1';
+process.env.PRISMA_CLI_QUERY_ENGINE_TYPE = 'binary';
+process.env.PRISMA_CLIENT_ENGINE_TYPE = 'binary';
+
 async function bootstrap() {
   const logger = createLogger();
 

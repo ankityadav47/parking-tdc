@@ -22,8 +22,6 @@ export class HealthController {
   @ApiOperation({ summary: 'Check Prisma Version and Test Live Connection' })
   async debugPrisma() {
     const { Prisma, PrismaClient } = require('@prisma/client');
-    const { PrismaPg } = require('@prisma/adapter-pg');
-    const { Pool } = require('pg');
     
     const results: any = {
       prismaVersion: Prisma.prismaVersion,
@@ -31,17 +29,14 @@ export class HealthController {
     };
 
     try {
-      const url = new URL(process.env.DATABASE_URL!);
-      if (url.port === '6543' && url.hostname.includes('pooler.supabase.com')) {
-        url.port = '5432';
+      let url = process.env.DATABASE_URL || '';
+      if (url.includes(':6543') && url.includes('pooler.supabase.com')) {
+        url = url.replace(':6543', ':5432');
       }
-      const pool = new Pool({
-        connectionString: url.toString(),
-        connectionTimeoutMillis: 5000,
-        ssl: { rejectUnauthorized: false },
+
+      const testPrisma = new PrismaClient({
+        datasources: { db: { url } },
       });
-      const adapter = new PrismaPg(pool);
-      const testPrisma = new PrismaClient({ adapter });
       
       const start = Date.now();
       const res = await Promise.race([
@@ -50,7 +45,6 @@ export class HealthController {
       ]);
       results.testQuery = `Success in ${Date.now() - start}ms: ` + JSON.stringify(res);
       await testPrisma.$disconnect();
-      await pool.end();
     } catch (err: any) {
       results.testQuery = `Error: ${err.message}`;
     }
