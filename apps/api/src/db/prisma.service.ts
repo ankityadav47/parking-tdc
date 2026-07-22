@@ -25,7 +25,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     // @prisma/adapter-pg v6: PrismaPg takes a pg.Pool instance
     if (!PrismaService.pgPool) {
-      PrismaService.pgPool = new Pool({ connectionString: url.toString() });
+      PrismaService.pgPool = new Pool({
+        connectionString: url.toString(),
+        connectionTimeoutMillis: 8000,  // fail fast if port blocked
+        idleTimeoutMillis: 30000,
+        max: 5,
+      });
+      // Log pool errors & connection events for debugging
+      PrismaService.pgPool.on('error', (err) =>
+        new Logger('PgPool').error('pg pool error: ' + err.message),
+      );
     }
     const adapter = new PrismaPg(PrismaService.pgPool);
 
