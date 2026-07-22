@@ -15,7 +15,17 @@ export class HealthController {
   @Get('health')
   @ApiOperation({ summary: 'Liveness check' })
   health() {
-    return { status: 'ok', timestamp: new Date().toISOString(), service: 'parkspot-api' };
+    return { status: 'ok', timestamp: new Date().toISOString(), service: 'parkspot-api', version: '2' };
+  }
+
+  @Get('debug-prisma')
+  @ApiOperation({ summary: 'Check Prisma Version' })
+  debugPrisma() {
+    const { Prisma } = require('@prisma/client');
+    return {
+      prismaVersion: Prisma.prismaVersion,
+      envDATABASE_URL: process.env.DATABASE_URL?.replace(/:[^:@]*@/, ':***@'),
+    };
   }
 
   @Get('ready')
