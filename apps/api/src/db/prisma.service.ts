@@ -46,7 +46,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     this.logger.log('PrismaService initializing...');
-    // Connect pool explicitly to test if it hangs before Prisma even tries
     try {
       const client = await this.pgPool.connect();
       client.release();
@@ -54,10 +53,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     } catch (err: any) {
       this.logger.error('pg.Pool failed to connect!', err);
     }
-
-    this.$connect()
-      .then(() => this.logger.log('Prisma Database connected via adapter'))
-      .catch((err) => this.logger.error('Prisma Database connection failed', err));
+    // Removed explicit this.$connect() to avoid potential deadlocks with adapter-pg.
+    // Prisma will automatically connect on the first query.
   }
 
   async onModuleDestroy() {

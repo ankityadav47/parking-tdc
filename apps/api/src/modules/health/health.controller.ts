@@ -19,13 +19,43 @@ export class HealthController {
   }
 
   @Get('debug-prisma')
-  @ApiOperation({ summary: 'Check Prisma Version' })
-  debugPrisma() {
-    const { Prisma } = require('@prisma/client');
-    return {
+  @ApiOperation({ summary: 'Check Prisma Version and Test Live Connection' })
+  async debugPrisma() {
+    const { Prisma, PrismaClient } = require('@prisma/client');
+    const { PrismaPg } = require('@prisma/adapter-pg');
+    const { Pool } = require('pg');
+    
+    const results: any = {
       prismaVersion: Prisma.prismaVersion,
       envDATABASE_URL: process.env.DATABASE_URL?.replace(/:[^:@]*@/, ':***@'),
     };
+
+    try {
+      const url = new URL(process.env.DATABASE_URL!);
+      if (url.port === '6543' && url.hostname.includes('pooler.supabase.com')) {
+        url.port = '5432';
+      }
+      const pool = new Pool({
+        connectionString: url.toString(),
+        connectionTimeoutMillis: 5000,
+        ssl: { rejectUnauthorized: false },
+      });
+      const adapter = new PrismaPg(pool);
+      const testPrisma = new PrismaClient({ adapter });
+      
+      const start = Date.now();
+      const res = await Promise.race([
+        testPrisma.$queryRaw`SELECT 1 as val`,
+        new Promise((_, rej) => setTimeout(() => rej(new Error('TIMEOUT_5S')), 5000))
+      ]);
+      results.testQuery = `Success in ${Date.now() - start}ms: ` + JSON.stringify(res);
+      await testPrisma.$disconnect();
+      await pool.end();
+    } catch (err: any) {
+      results.testQuery = `Error: ${err.message}`;
+    }
+
+    return results;
   }
 
   @Get('ready')
